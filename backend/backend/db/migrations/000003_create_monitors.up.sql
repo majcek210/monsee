@@ -1,0 +1,21 @@
+CREATE TABLE monitors (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  service_id            UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  name                  TEXT NOT NULL,
+  type                  TEXT NOT NULL,
+  url                   TEXT,
+  host                  TEXT,
+  port                  INT,
+  interval_seconds      INT NOT NULL DEFAULT 60,
+  timeout_ms            INT NOT NULL DEFAULT 5000,
+  retry_count           INT NOT NULL DEFAULT 2,
+  consecutive_failures  INT NOT NULL DEFAULT 0,
+  degraded_threshold_ms INT,
+  http_method           TEXT DEFAULT 'GET',
+  http_expected_status  INT DEFAULT 200,
+  enabled               BOOL NOT NULL DEFAULT true,
+  next_check_at         TIMESTAMPTZ DEFAULT now(),
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  archived_at           TIMESTAMPTZ
+);
