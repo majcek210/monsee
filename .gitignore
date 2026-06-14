@@ -1,0 +1,10 @@
+# .gitignore
+.env
+node_modules/
+.next/
+backend/tmp/
+*.log
+backend/server
+backend/worker
+*.exe
+*.tsbuildinfo
