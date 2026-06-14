@@ -1,0 +1,196 @@
+# compose.coolify.yml — Coolify "Docker Compose" deployment
+#
+# Intended for an internal deployment reached over Netbird (private WireGuard
+# mesh), not via Coolify's Traefik proxy / public FQDNs. Services are exposed
+# via host ports, which are reachable from any device on the Netbird network
+# once they're bound on the host.
+#
+# ── Setup in Coolify ────────────────────────────────────────────────────────
+# Add this file as a "Docker Compose" resource, then define these environment
+# variables in the Coolify UI for the resource (they're substituted into the
+# ${...} placeholders below — DATABASE_URL/REDIS_URL/BACKEND_URL are wired
+# automatically via the compose service names and do not need to be set):
+#
+#   POSTGRES_USER             e.g. statususer
+#   POSTGRES_PASSWORD         strong random password
+#   POSTGRES_DB               e.g. statusdb
+#   JWT_SECRET                openssl rand -hex 32
+#   ENCRYPTION_KEY            exactly 32 bytes, e.g. openssl rand -hex 16
+#   PUBLIC_STATUS_ENABLED     true | false  (enables /api/v1/* + status page)
+#   NEXT_PUBLIC_STATUS_PAGE   true | false  (should match PUBLIC_STATUS_ENABLED)
+#   SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM   (optional)
+#
+# ── Reachable on the Netbird network ───────────────────────────────────────
+#   frontend  -> :3000  admin dashboard + public status page
+#   backend   -> :8080  API, :2112 Prometheus /metrics
+#   asynqmon  -> :8081  Asynq queue monitor
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      target: runner
+    ports:
+      - "8080:8080"
+      - "2112:2112"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      APP_ENV: production
+      PORT: "8080"
+      PUBLIC_STATUS_ENABLED: ${PUBLIC_STATUS_ENABLED:-true}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+      target: worker
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      APP_ENV: production
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  asynqmon:
+    image: hibiken/asynqmon:latest
+    ports:
+      - "8081:8080"
+    environment:
+      REDIS_URL: redis://redis:6379
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    depends_on:
+      redis:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      BACKEND_URL: http://backend:8080
+      NEXT_PUBLIC_STATUS_PAGE: ${NEXT_PUBLIC_STATUS_PAGE:-true}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
