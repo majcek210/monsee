@@ -53,10 +53,10 @@ services:
       context: ./backend
       target: runner
     environment:
-      DATABASE_URL: postgres://${SERVICE_USER_DB}:${SERVICE_PASSWORD_DB}@postgres:5432/${POSTGRES_DB:-monsee}
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      DATABASE_URL: ${DATABASE_URL:-postgres://${SERVICE_USER_DB}:${SERVICE_PASSWORD_DB}@postgres:5432/${POSTGRES_DB:-monsee}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      JWT_SECRET: ${SERVICE_BASE64_64_JWT}
+      ENCRYPTION_KEY: ${SERVICE_BASE64_ENCRYPTIONKEY}
       APP_ENV: production
       PORT: "8080"
       PUBLIC_STATUS_ENABLED: ${PUBLIC_STATUS_ENABLED:-true}
@@ -86,12 +86,12 @@ services:
       context: ./backend
       target: worker
     environment:
-      DATABASE_URL: postgres://${SERVICE_USER_DB}:${SERVICE_PASSWORD_DB}@postgres:5432/${POSTGRES_DB:-monsee}
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      DATABASE_URL:  ${DATABASE_URL:-postgres://${SERVICE_USER_DB}:${SERVICE_PASSWORD_DB}@postgres:5432/${POSTGRES_DB:-monsee}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      JWT_SECRET: ${SERVICE_BASE64_64_JWT}
+      ENCRYPTION_KEY: ${SERVICE_BASE64_ENCRYPTIONKEY}
       APP_ENV: production
-      FRONTEND_URL: ${SERVICE_URL_MONSEE_3000}
+      FRONTEND_URL: ${APP_URL}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -116,7 +116,7 @@ services:
   asynqmon:
     image: hibiken/asynqmon:latest
     environment:
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     restart: unless-stopped
     deploy:
       resources:
@@ -135,9 +135,8 @@ services:
     build:
       context: ./frontend
     environment:
-      SERVICE_URL_MONSEE_3000: ${SERVICE_URL_MONSEE_3000}
-      APP_URL: ${SERVICE_URL_MONSEE_3000}
-      BACKEND_URL: http://backend:8080
+      APP_URL: ${APP_URL}
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8080}
       NEXT_PUBLIC_STATUS_PAGE: ${NEXT_PUBLIC_STATUS_PAGE:-true}
     restart: unless-stopped
     deploy:
