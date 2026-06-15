@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Activity } from "lucide-react";
+import Image from "next/image";
 import { authApi } from "@/lib/api/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-3">
             <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10">
-              <Activity className="h-5 w-5 text-primary" />
+              <Image src="/monsee.png" alt="monsee" width={24} height={24} className="rounded" />
             </div>
           </div>
           <CardTitle>Admin Login</CardTitle>

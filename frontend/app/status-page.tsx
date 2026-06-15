@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CheckCircle2, AlertTriangle, XCircle, Clock } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle2, AlertTriangle, XCircle, Clock } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -94,7 +95,7 @@ export function PublicStatusPage() {
       {/* Header */}
       <header className="border-b border-border">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
+          <Image src="/monsee.png" alt="monsee" width={24} height={24} className="rounded" />
           <span className="font-semibold">monsee</span>
         </div>
       </header>
