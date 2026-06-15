@@ -18,12 +18,14 @@ type discordPayload struct {
 type discordEmbed struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
+	URL         string `json:"url,omitempty"`
 	Color       int    `json:"color"`
 	Timestamp   string `json:"timestamp"`
 }
 
-// SendDiscord posts an embed to a Discord webhook URL.
-func SendDiscord(ctx context.Context, webhookURL, title, description string, isDown bool) error {
+// SendDiscord posts an embed to a Discord webhook URL. If link is non-empty,
+// the embed title becomes a clickable link to it.
+func SendDiscord(ctx context.Context, webhookURL, title, description, link string, isDown bool) error {
 	// SSRF guard: re-checked at send time (not just at create/update) so DNS
 	// rebinding after the channel was configured can't reach internal hosts.
 	if err := netguard.CheckPublicURL(webhookURL); err != nil {
@@ -39,6 +41,7 @@ func SendDiscord(ctx context.Context, webhookURL, title, description string, isD
 		Embeds: []discordEmbed{{
 			Title:       title,
 			Description: description,
+			URL:         link,
 			Color:       color,
 			Timestamp:   time.Now().UTC().Format(time.RFC3339),
 		}},

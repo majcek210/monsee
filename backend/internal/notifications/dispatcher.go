@@ -13,17 +13,19 @@ import (
 
 // Dispatcher fires notifications to all enabled channels for a given alert event.
 type Dispatcher struct {
-	channels   domain.NotificationChannelRepository
-	encKey     []byte
-	smtpConfig SMTPConfig
+	channels    domain.NotificationChannelRepository
+	encKey      []byte
+	smtpConfig  SMTPConfig
+	frontendURL string // public URL of the admin dashboard, used to link back from alerts; "" disables links
 }
 
 func NewDispatcher(
 	channels domain.NotificationChannelRepository,
 	encKey []byte,
 	smtp SMTPConfig,
+	frontendURL string,
 ) *Dispatcher {
-	return &Dispatcher{channels: channels, encKey: encKey, smtpConfig: smtp}
+	return &Dispatcher{channels: channels, encKey: encKey, smtpConfig: smtp, frontendURL: frontendURL}
 }
 
 // Dispatch sends an alert to all enabled channels.
@@ -37,6 +39,11 @@ func (d *Dispatcher) Dispatch(ctx context.Context, event domain.AlertEvent, _ ma
 
 	title, body := formatMessage(event)
 
+	link := ""
+	if d.frontendURL != "" {
+		link = fmt.Sprintf("%s/admin/services/%s", d.frontendURL, event.ServiceID)
+	}
+
 	for _, ch := range channels {
 		go func() {
 			// Detach from ctx's cancellation: the caller (the asynq task
@@ -45,14 +52,14 @@ func (d *Dispatcher) Dispatch(ctx context.Context, event domain.AlertEvent, _ ma
 			// deadline, and apply our own.
 			sendCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 			defer cancel()
-			if err := d.send(sendCtx, ch, title, body, event.Event == "monitor.down"); err != nil {
+			if err := d.send(sendCtx, ch, title, body, link, event.Event == "monitor.down"); err != nil {
 				log.Printf("notifications: send %s via %s: %v", event.Event, ch.Type, err)
 			}
 		}()
 	}
 }
 
-func (d *Dispatcher) send(ctx context.Context, ch *domain.NotificationChannel, title, body string, isDown bool) error {
+func (d *Dispatcher) send(ctx context.Context, ch *domain.NotificationChannel, title, body, link string, isDown bool) error {
 	// Decrypt config
 	raw, err := encrypt.Decrypt(d.encKey, ch.Config)
 	if err != nil {
@@ -70,12 +77,15 @@ func (d *Dispatcher) send(ctx context.Context, ch *domain.NotificationChannel, t
 		if url == "" {
 			return fmt.Errorf("discord channel missing webhook_url")
 		}
-		return SendDiscord(ctx, url, title, body, isDown)
+		return SendDiscord(ctx, url, title, body, link, isDown)
 
 	case "email":
 		to := cfg["to"]
 		if to == "" {
 			return fmt.Errorf("email channel missing to")
+		}
+		if link != "" {
+			body += "\n\nView details: " + link
 		}
 		return SendEmail(ctx, d.smtpConfig, to, title, body)
 

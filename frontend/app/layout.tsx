@@ -6,6 +6,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   title: "Status — monsee",
   description: "System status and uptime monitoring",
 };

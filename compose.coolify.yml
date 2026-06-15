@@ -1,37 +1,10 @@
-# compose.coolify.yml — Coolify "Docker Compose" deployment
-#
-# Intended for an internal deployment reached over Netbird (private WireGuard
-# mesh), not via Coolify's Traefik proxy / public FQDNs. Services are exposed
-# via host ports, which are reachable from any device on the Netbird network
-# once they're bound on the host.
-#
-# ── Setup in Coolify ────────────────────────────────────────────────────────
-# Add this file as a "Docker Compose" resource, then define these environment
-# variables in the Coolify UI for the resource (they're substituted into the
-# ${...} placeholders below — DATABASE_URL/REDIS_URL/BACKEND_URL are wired
-# automatically via the compose service names and do not need to be set):
-#
-#   POSTGRES_USER             e.g. statususer
-#   POSTGRES_PASSWORD         strong random password
-#   POSTGRES_DB               e.g. statusdb
-#   JWT_SECRET                openssl rand -hex 32
-#   ENCRYPTION_KEY            exactly 32 bytes, e.g. openssl rand -hex 16
-#   PUBLIC_STATUS_ENABLED     true | false  (enables /api/v1/* + status page)
-#   NEXT_PUBLIC_STATUS_PAGE   true | false  (should match PUBLIC_STATUS_ENABLED)
-#   SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM   (optional)
-#
-# ── Reachable on the Netbird network ───────────────────────────────────────
-#   frontend  -> :3000  admin dashboard + public status page
-#   backend   -> :8080  API, :2112 Prometheus /metrics
-#   asynqmon  -> :8081  Asynq queue monitor
-
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${SERVICE_USER_DB}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_DB}
+      POSTGRES_DB: ${POSTGRES_DB:-monsee}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -45,7 +18,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${SERVICE_USER_DB} -d ${POSTGRES_DB:-monsee}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -79,11 +52,8 @@ services:
     build:
       context: ./backend
       target: runner
-    ports:
-      - "8080:8080"
-      - "2112:2112"
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgres://${SERVICE_USER_DB}:${SERVICE_PASSWORD_DB}@postgres:5432/${POSTGRES_DB:-monsee}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
@@ -116,11 +86,12 @@ services:
       context: ./backend
       target: worker
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgres://${SERVICE_USER_DB}:${SERVICE_PASSWORD_DB}@postgres:5432/${POSTGRES_DB:-monsee}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       APP_ENV: production
+      FRONTEND_URL: ${SERVICE_URL_MONSEE_3000}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -144,8 +115,6 @@ services:
 
   asynqmon:
     image: hibiken/asynqmon:latest
-    ports:
-      - "8081:8080"
     environment:
       REDIS_URL: redis://redis:6379
     restart: unless-stopped
@@ -165,11 +134,9 @@ services:
   frontend:
     build:
       context: ./frontend
-    ports:
-      - "3000:3000"
     environment:
-      PORT: "3000"
-      HOSTNAME: "0.0.0.0"
+      SERVICE_URL_MONSEE_3000: ${SERVICE_URL_MONSEE_3000}
+      APP_URL: ${SERVICE_URL_MONSEE_3000}
       BACKEND_URL: http://backend:8080
       NEXT_PUBLIC_STATUS_PAGE: ${NEXT_PUBLIC_STATUS_PAGE:-true}
     restart: unless-stopped

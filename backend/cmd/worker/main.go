@@ -63,7 +63,7 @@ func main() {
 		Pass: cfg.SMTPPass,
 		From: cfg.SMTPFrom,
 	}
-	notifDispatcher   := notifications.NewDispatcher(notifRepo, encKey, smtpCfg)
+	notifDispatcher   := notifications.NewDispatcher(notifRepo, encKey, smtpCfg, cfg.FrontendURL)
 	webhookDispatcher := whooks.NewDispatcher(webhookRepo, encKey)
 
 	// ── Checker service ───────────────────────────────────────────────────────
