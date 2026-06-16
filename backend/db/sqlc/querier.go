@@ -12,27 +12,39 @@ import (
 
 type Querier interface {
 	ArchiveAPIKey(ctx context.Context, id pgtype.UUID) error
+	ArchiveMaintenanceWindow(ctx context.Context, id pgtype.UUID) error
 	ArchiveMonitor(ctx context.Context, id pgtype.UUID) error
 	ArchiveNotificationChannel(ctx context.Context, id pgtype.UUID) error
 	ArchiveService(ctx context.Context, id pgtype.UUID) error
 	ArchiveUser(ctx context.Context, id pgtype.UUID) error
 	ArchiveWebhook(ctx context.Context, id pgtype.UUID) error
 	CountActiveAdmins(ctx context.Context) (int64, error)
+	CountAuditLog(ctx context.Context, arg CountAuditLogParams) (int64, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
 	CreateIncident(ctx context.Context, arg CreateIncidentParams) (Incident, error)
+	CreateIncidentUpdate(ctx context.Context, arg CreateIncidentUpdateParams) (IncidentUpdate, error)
+	CreateMaintenanceWindow(ctx context.Context, arg CreateMaintenanceWindowParams) (MaintenanceWindow, error)
 	CreateMonitor(ctx context.Context, arg CreateMonitorParams) (Monitor, error)
 	CreateNotificationChannel(ctx context.Context, arg CreateNotificationChannelParams) (NotificationChannel, error)
 	CreateService(ctx context.Context, arg CreateServiceParams) (Service, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateWebhook(ctx context.Context, arg CreateWebhookParams) (Webhook, error)
+	DisableTOTP(ctx context.Context, id pgtype.UUID) error
+	EnableTOTP(ctx context.Context, arg EnableTOTPParams) error
 	GetAPIKeyByHash(ctx context.Context, keyHash string) (ApiKey, error)
 	GetAPIKeyByID(ctx context.Context, id pgtype.UUID) (ApiKey, error)
+	GetDailyUptimeForMonitor(ctx context.Context, arg GetDailyUptimeForMonitorParams) ([]GetDailyUptimeForMonitorRow, error)
 	GetIncidentByID(ctx context.Context, id pgtype.UUID) (Incident, error)
 	GetLatestCheckForMonitor(ctx context.Context, monitorID pgtype.UUID) (CheckResult, error)
+	GetMaintenanceWindowByID(ctx context.Context, id pgtype.UUID) (MaintenanceWindow, error)
 	GetMonitorByID(ctx context.Context, id pgtype.UUID) (Monitor, error)
 	GetNotificationChannelByID(ctx context.Context, id pgtype.UUID) (NotificationChannel, error)
 	GetOpenIncidentForMonitor(ctx context.Context, monitorID pgtype.UUID) (Incident, error)
+	GetServiceByCustomDomain(ctx context.Context, customDomain *string) (Service, error)
 	GetServiceByID(ctx context.Context, id pgtype.UUID) (Service, error)
+	GetServiceBySlug(ctx context.Context, slug *string) (Service, error)
+	GetSettings(ctx context.Context) (Setting, error)
+	GetTOTPByUserID(ctx context.Context, id pgtype.UUID) (GetTOTPByUserIDRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetWebhookByID(ctx context.Context, id pgtype.UUID) (Webhook, error)
@@ -40,34 +52,44 @@ type Querier interface {
 	InsertAuditLog(ctx context.Context, arg InsertAuditLogParams) (AuditLog, error)
 	InsertCheckResult(ctx context.Context, arg InsertCheckResultParams) (CheckResult, error)
 	InsertWebhookLog(ctx context.Context, arg InsertWebhookLogParams) (WebhookLog, error)
+	IsMaintenanceActiveForService(ctx context.Context, serviceID pgtype.UUID) (bool, error)
 	ListAPIKeysByUser(ctx context.Context, userID pgtype.UUID) ([]ApiKey, error)
+	ListActiveForService(ctx context.Context, serviceID pgtype.UUID) ([]MaintenanceWindow, error)
+	ListActiveMaintenanceWindows(ctx context.Context) ([]MaintenanceWindow, error)
 	ListAllIncidents(ctx context.Context) ([]Incident, error)
-	ListAuditLog(ctx context.Context, limit int32) ([]AuditLog, error)
+	ListAuditLog(ctx context.Context, arg ListAuditLogParams) ([]AuditLog, error)
 	ListAuditLogByResource(ctx context.Context, arg ListAuditLogByResourceParams) ([]AuditLog, error)
 	ListCheckResultsByMonitor(ctx context.Context, arg ListCheckResultsByMonitorParams) ([]CheckResult, error)
 	ListDueMonitors(ctx context.Context) ([]Monitor, error)
 	ListEnabledNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
+	ListIncidentUpdates(ctx context.Context, incidentID pgtype.UUID) ([]IncidentUpdate, error)
 	ListIncidentsByService(ctx context.Context, serviceID pgtype.UUID) ([]Incident, error)
+	ListMaintenanceWindowsByService(ctx context.Context, serviceID pgtype.UUID) ([]MaintenanceWindow, error)
 	ListMonitorsByService(ctx context.Context, serviceID pgtype.UUID) ([]Monitor, error)
 	ListNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
+	ListResponseTimes(ctx context.Context, arg ListResponseTimesParams) ([]ListResponseTimesRow, error)
 	ListServices(ctx context.Context) ([]Service, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	ListWebhookLogs(ctx context.Context, arg ListWebhookLogsParams) ([]WebhookLog, error)
 	ListWebhooks(ctx context.Context) ([]Webhook, error)
 	ListWebhooksByEvent(ctx context.Context, dollar_1 string) ([]Webhook, error)
+	RemoveBackupCode(ctx context.Context, arg RemoveBackupCodeParams) error
 	ResetConsecutiveFailures(ctx context.Context, id pgtype.UUID) error
 	ResolveIncident(ctx context.Context, arg ResolveIncidentParams) (Incident, error)
 	SetNextCheckAt(ctx context.Context, id pgtype.UUID) error
+	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
 	UpdateAPIKeyLastUsed(ctx context.Context, id pgtype.UUID) error
 	UpdateIncident(ctx context.Context, arg UpdateIncidentParams) (Incident, error)
+	UpdateMaintenanceWindow(ctx context.Context, arg UpdateMaintenanceWindowParams) (MaintenanceWindow, error)
 	UpdateMonitor(ctx context.Context, arg UpdateMonitorParams) (Monitor, error)
 	// Partial update: any narg left NULL keeps the existing column value, so the
 	// handler can omit name/config/enabled independently (e.g. the "toggle
 	// enabled" switch sends only enabled).
 	UpdateNotificationChannel(ctx context.Context, arg UpdateNotificationChannelParams) (NotificationChannel, error)
-	// Partial update: any narg left NULL keeps the existing column value, so the
-	// handler can omit name/description/status independently.
+	// Partial update: any narg left NULL keeps the existing column value.
+	// slug/custom_domain/status_override use CASE to allow clearing to NULL.
 	UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error)
+	UpdateSettings(ctx context.Context, arg UpdateSettingsParams) (Setting, error)
 	UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error)
 	// Partial update: any narg left NULL keeps the existing column value, so the
 	// handler can omit name/url/secret/events/enabled independently (e.g. the

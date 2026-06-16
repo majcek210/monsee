@@ -99,12 +99,70 @@ func (r *UserRepo) Archive(ctx context.Context, id string) error {
 	return r.q.ArchiveUser(ctx, uid)
 }
 
+func (r *UserRepo) GetTOTP(ctx context.Context, userID string) (*domain.TOTPData, error) {
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return nil, domain.NotFound("user not found")
+	}
+	row, err := r.q.GetTOTPByUserID(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	return &domain.TOTPData{
+		Secret:      row.TotpSecret,
+		Enabled:     row.TotpEnabled,
+		BackupCodes: row.TotpBackupCodes,
+	}, nil
+}
+
+func (r *UserRepo) SetTOTPSecret(ctx context.Context, userID, secret string) error {
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return domain.NotFound("user not found")
+	}
+	return r.q.SetTOTPSecret(ctx, sqlcdb.SetTOTPSecretParams{
+		ID:         uid,
+		TotpSecret: &secret,
+	})
+}
+
+func (r *UserRepo) EnableTOTP(ctx context.Context, userID string, backupCodes []string) error {
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return domain.NotFound("user not found")
+	}
+	return r.q.EnableTOTP(ctx, sqlcdb.EnableTOTPParams{
+		ID:              uid,
+		TotpBackupCodes: backupCodes,
+	})
+}
+
+func (r *UserRepo) DisableTOTP(ctx context.Context, userID string) error {
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return domain.NotFound("user not found")
+	}
+	return r.q.DisableTOTP(ctx, uid)
+}
+
+func (r *UserRepo) RemoveBackupCode(ctx context.Context, userID, code string) error {
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return domain.NotFound("user not found")
+	}
+	return r.q.RemoveBackupCode(ctx, sqlcdb.RemoveBackupCodeParams{
+		ID:          uid,
+		ArrayRemove: code,
+	})
+}
+
 func userToDomain(u sqlcdb.User) *domain.User {
 	return &domain.User{
 		ID:           uuidStr(u.ID),
 		Email:        u.Email,
 		PasswordHash: u.PasswordHash,
 		Role:         u.Role,
+		TOTPEnabled:  u.TotpEnabled,
 		CreatedAt:    tsToTime(u.CreatedAt),
 		ArchivedAt:   tsToTimePtr(u.ArchivedAt),
 	}

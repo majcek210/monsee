@@ -13,16 +13,29 @@ VALUES ($1, $2)
 RETURNING *;
 
 -- name: UpdateService :one
--- Partial update: any narg left NULL keeps the existing column value, so the
--- handler can omit name/description/status independently.
+-- Partial update: any narg left NULL keeps the existing column value.
+-- slug/custom_domain/status_override use CASE to allow clearing to NULL.
 UPDATE services
-SET name        = COALESCE(sqlc.narg(name), name),
-    description = COALESCE(sqlc.narg(description), description),
-    status      = COALESCE(sqlc.narg(status), status)
+SET name                  = COALESCE(sqlc.narg(name), name),
+    description           = COALESCE(sqlc.narg(description), description),
+    status                = COALESCE(sqlc.narg(status), status),
+    public_visible        = COALESCE(sqlc.narg(public_visible), public_visible),
+    show_uptime           = COALESCE(sqlc.narg(show_uptime), show_uptime),
+    dedicated_page_enabled = COALESCE(sqlc.narg(dedicated_page_enabled), dedicated_page_enabled),
+    uptime_range_days     = COALESCE(sqlc.narg(uptime_range_days), uptime_range_days),
+    slug                  = CASE WHEN sqlc.narg(slug)::text = '' THEN NULL ELSE COALESCE(sqlc.narg(slug), slug) END,
+    custom_domain         = CASE WHEN sqlc.narg(custom_domain)::text = '' THEN NULL ELSE COALESCE(sqlc.narg(custom_domain), custom_domain) END,
+    status_override       = CASE WHEN sqlc.narg(status_override)::text = '' THEN NULL ELSE COALESCE(sqlc.narg(status_override), status_override) END
 WHERE id = $1
 RETURNING *;
 
+-- name: GetServiceBySlug :one
+SELECT * FROM services WHERE slug = $1 AND archived_at IS NULL;
+
+-- name: GetServiceByCustomDomain :one
+SELECT * FROM services WHERE custom_domain = $1 AND archived_at IS NULL;
+
 -- name: ArchiveService :exec
 UPDATE services
-SET archived_at = now()
+SET archived_at = now(), slug = NULL, custom_domain = NULL
 WHERE id = $1;

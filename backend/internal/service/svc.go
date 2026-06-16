@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"regexp"
 
 	"github.com/majcek210/monsee/internal/domain"
 )
+
+var slugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 type MonitoringService struct {
 	services domain.ServiceRepository
@@ -34,11 +37,46 @@ func (s *MonitoringService) Update(ctx context.Context, id string, p domain.Upda
 	if p.Name == "" {
 		return nil, domain.ValidationErr("name", "name is required")
 	}
-	_, err := s.services.GetByID(ctx, id)
+	if p.Slug != nil && *p.Slug != "" && !slugPattern.MatchString(*p.Slug) {
+		return nil, domain.ValidationErr("slug", "slug must be lowercase letters, numbers, and hyphens only")
+	}
+	if p.UptimeRangeDays != nil && (*p.UptimeRangeDays < 1 || *p.UptimeRangeDays > 365) {
+		return nil, domain.ValidationErr("uptime_range_days", "uptime_range_days must be between 1 and 365")
+	}
+	if p.StatusOverride != nil && *p.StatusOverride != "" {
+		valid := map[string]bool{"operational": true, "degraded": true, "outage": true, "maintenance": true}
+		if !valid[*p.StatusOverride] {
+			return nil, domain.ValidationErr("status_override", "status_override must be operational, degraded, outage, or maintenance")
+		}
+	}
+	existing, err := s.services.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
+	dedicatedEnabled := existing.DedicatedPageEnabled
+	if p.DedicatedPageEnabled != nil {
+		dedicatedEnabled = *p.DedicatedPageEnabled
+	}
+	slug := existing.Slug
+	if p.Slug != nil {
+		if *p.Slug == "" {
+			slug = nil
+		} else {
+			slug = p.Slug
+		}
+	}
+	if dedicatedEnabled && (slug == nil || *slug == "") {
+		return nil, domain.ValidationErr("slug", "slug is required when dedicated page is enabled")
+	}
 	return s.services.Update(ctx, id, p)
+}
+
+func (s *MonitoringService) GetBySlug(ctx context.Context, slug string) (*domain.Service, error) {
+	return s.services.GetBySlug(ctx, slug)
+}
+
+func (s *MonitoringService) GetByCustomDomain(ctx context.Context, domain string) (*domain.Service, error) {
+	return s.services.GetByCustomDomain(ctx, domain)
 }
 
 func (s *MonitoringService) Archive(ctx context.Context, id string) error {

@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Image from "next/image";
+import Link from "next/link";
 import { CheckCircle2, AlertTriangle, XCircle, Clock } from "lucide-react";
 import { api } from "@/lib/api/client";
+import { usePublicSettings } from "@/lib/hooks/use-settings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -87,16 +88,20 @@ function ServiceStatusIcon({ status }: { status: string }) {
 export function PublicStatusPage() {
   const { data: services, isLoading } = usePublicStatus();
   const { data: incidents } = usePublicIncidents();
+  const { data: settings } = usePublicSettings();
 
   const openIncidents = incidents?.filter((i) => i.status === "open") ?? [];
+  const logoUrl = settings?.logo_url || "/monsee.png";
+  const siteTitle = settings?.site_title || "monsee";
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-2">
-          <Image src="/monsee.png" alt="monsee" width={24} height={24} className="rounded" />
-          <span className="font-semibold">monsee</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoUrl} alt={siteTitle} width={24} height={24} className="rounded" />
+          <span className="font-semibold">{siteTitle}</span>
         </div>
       </header>
 
@@ -115,9 +120,10 @@ export function PublicStatusPage() {
               Active Incidents
             </h2>
             {openIncidents.map((inc) => (
-              <div
+              <Link
                 key={inc.id}
-                className="p-4 rounded-lg border border-red-500/20 bg-red-500/5 space-y-1"
+                href={`/incidents/${inc.id}`}
+                className="block p-4 rounded-lg border border-red-500/20 bg-red-500/5 space-y-1 hover:bg-red-500/10 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
@@ -127,7 +133,7 @@ export function PublicStatusPage() {
                 <p className="text-xs text-muted-foreground pl-6">
                   Opened {formatDistanceToNow(new Date(inc.created_at), { addSuffix: true })}
                 </p>
-              </div>
+              </Link>
             ))}
           </div>
         )}

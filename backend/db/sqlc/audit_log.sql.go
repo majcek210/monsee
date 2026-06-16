@@ -11,6 +11,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countAuditLog = `-- name: CountAuditLog :one
+SELECT count(*) FROM audit_log
+WHERE ($1::text IS NULL OR resource = $1)
+  AND ($2::uuid IS NULL OR user_id = $2)
+`
+
+type CountAuditLogParams struct {
+	Resource     *string     `json:"resource"`
+	FilterUserID pgtype.UUID `json:"filter_user_id"`
+}
+
+func (q *Queries) CountAuditLog(ctx context.Context, arg CountAuditLogParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAuditLog, arg.Resource, arg.FilterUserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const insertAuditLog = `-- name: InsertAuditLog :one
 INSERT INTO audit_log (user_id, action, resource, resource_id, ip, user_agent, diff)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -53,11 +71,27 @@ func (q *Queries) InsertAuditLog(ctx context.Context, arg InsertAuditLogParams) 
 }
 
 const listAuditLog = `-- name: ListAuditLog :many
-SELECT id, user_id, action, resource, resource_id, ip, user_agent, diff, created_at FROM audit_log ORDER BY created_at DESC LIMIT $1
+SELECT id, user_id, action, resource, resource_id, ip, user_agent, diff, created_at FROM audit_log
+WHERE ($3::text IS NULL OR resource = $3)
+  AND ($4::uuid IS NULL OR user_id = $4)
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) ListAuditLog(ctx context.Context, limit int32) ([]AuditLog, error) {
-	rows, err := q.db.Query(ctx, listAuditLog, limit)
+type ListAuditLogParams struct {
+	Limit        int32       `json:"limit"`
+	Offset       int32       `json:"offset"`
+	Resource     *string     `json:"resource"`
+	FilterUserID pgtype.UUID `json:"filter_user_id"`
+}
+
+func (q *Queries) ListAuditLog(ctx context.Context, arg ListAuditLogParams) ([]AuditLog, error) {
+	rows, err := q.db.Query(ctx, listAuditLog,
+		arg.Limit,
+		arg.Offset,
+		arg.Resource,
+		arg.FilterUserID,
+	)
 	if err != nil {
 		return nil, err
 	}

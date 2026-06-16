@@ -133,6 +133,38 @@ func (r *IncidentRepo) Update(ctx context.Context, id string, p domain.UpdateInc
 	return incidentToDomain(row), nil
 }
 
+func (r *IncidentRepo) CreateUpdate(ctx context.Context, p domain.CreateIncidentUpdateParams) (*domain.IncidentUpdate, error) {
+	iid, err := parseUUID(p.IncidentID)
+	if err != nil {
+		return nil, domain.ValidationErr("incident_id", "invalid incident_id")
+	}
+	row, err := r.q.CreateIncidentUpdate(ctx, sqlcdb.CreateIncidentUpdateParams{
+		IncidentID: iid,
+		Status:     p.Status,
+		Message:    p.Message,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return incidentUpdateToDomain(row), nil
+}
+
+func (r *IncidentRepo) ListUpdates(ctx context.Context, incidentID string) ([]*domain.IncidentUpdate, error) {
+	iid, err := parseUUID(incidentID)
+	if err != nil {
+		return nil, domain.ValidationErr("incident_id", "invalid incident_id")
+	}
+	rows, err := r.q.ListIncidentUpdates(ctx, iid)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*domain.IncidentUpdate, len(rows))
+	for i, row := range rows {
+		out[i] = incidentUpdateToDomain(row)
+	}
+	return out, nil
+}
+
 func incidentToDomain(i sqlcdb.Incident) *domain.Incident {
 	return &domain.Incident{
 		ID:         uuidStr(i.ID),
@@ -144,5 +176,15 @@ func incidentToDomain(i sqlcdb.Incident) *domain.Incident {
 		ResolvedAt: tsToTimePtr(i.ResolvedAt),
 		CreatedAt:  tsToTime(i.CreatedAt),
 		UpdatedAt:  tsToTime(i.UpdatedAt),
+	}
+}
+
+func incidentUpdateToDomain(u sqlcdb.IncidentUpdate) *domain.IncidentUpdate {
+	return &domain.IncidentUpdate{
+		ID:         uuidStr(u.ID),
+		IncidentID: uuidStr(u.IncidentID),
+		Status:     u.Status,
+		Message:    u.Message,
+		CreatedAt:  tsToTime(u.CreatedAt),
 	}
 }

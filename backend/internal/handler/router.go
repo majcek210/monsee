@@ -11,6 +11,7 @@ import (
 	"github.com/majcek210/monsee/internal/domain"
 	v1 "github.com/majcek210/monsee/internal/handler/v1"
 	"github.com/majcek210/monsee/internal/middleware"
+	"github.com/majcek210/monsee/internal/repository/postgres"
 	"github.com/majcek210/monsee/internal/service"
 	"github.com/majcek210/monsee/internal/telemetry"
 )
@@ -24,6 +25,11 @@ type Deps struct {
 	APIKeys       *service.APIKeyService
 	Notifications *service.NotificationService
 	Webhooks      *service.WebhookService
+	Settings      *service.SettingsService
+	Uptime        *service.UptimeService
+	Maintenance   *service.MaintenanceService
+	TwoFactor     *service.TwoFactorService
+	AuditRepo     *postgres.AuditRepo
 	Limiter       middleware.Limiter
 	Audit         middleware.AuditLogger
 	Metrics       *telemetry.Metrics
@@ -67,6 +73,11 @@ func New(d Deps) *fiber.App {
 		authGroup.Post("/login", uh.Login)
 		authGroup.Post("/logout", uh.Logout)
 		authGroup.Get("/me", auth, uh.Me)
+
+		if d.TwoFactor != nil {
+			tfh := &TwoFactorHandler{tf: d.TwoFactor}
+			authGroup.Post("/2fa/verify", tfh.Verify)
+		}
 	}
 
 	// ── Admin (session-protected) ─────────────────────────────────────────────
@@ -83,6 +94,22 @@ func New(d Deps) *fiber.App {
 		admin.Get("/services/:id", sh.Get)
 		admin.Patch("/services/:id", middleware.RequireAdmin, sh.Update)
 		admin.Delete("/services/:id", middleware.RequireAdmin, sh.Archive)
+		if d.Uptime != nil {
+			admin.Get("/services/:id/uptime", func(c fiber.Ctx) error {
+				result, err := d.Uptime.GetServiceUptime(c.Context(), c.Params("id"), nil)
+				if err != nil {
+					return err
+				}
+				return c.JSON(result)
+			})
+			admin.Get("/uptime", func(c fiber.Ctx) error {
+				results, err := d.Uptime.GetAllServicesUptime(c.Context())
+				if err != nil {
+					return err
+				}
+				return c.JSON(results)
+			})
+		}
 
 		mh := &MonitorHandler{monitors: d.Monitors}
 		admin.Get("/monitors", mh.List)
@@ -90,6 +117,15 @@ func New(d Deps) *fiber.App {
 		admin.Get("/monitors/:id", mh.Get)
 		admin.Patch("/monitors/:id", middleware.RequireAdmin, mh.Update)
 		admin.Delete("/monitors/:id", middleware.RequireAdmin, mh.Archive)
+		if d.Uptime != nil {
+			admin.Get("/monitors/:id/latency", func(c fiber.Ctx) error {
+				pts, err := d.Uptime.GetMonitorLatency(c.Context(), c.Params("id"), 24)
+				if err != nil {
+					return err
+				}
+				return c.JSON(pts)
+			})
+		}
 
 		ih := &IncidentHandler{incidents: d.Incidents}
 		admin.Get("/incidents", ih.List)
@@ -97,6 +133,8 @@ func New(d Deps) *fiber.App {
 		admin.Get("/incidents/:id", ih.Get)
 		admin.Patch("/incidents/:id", middleware.RequireAdmin, ih.Update)
 		admin.Post("/incidents/:id/resolve", middleware.RequireAdmin, ih.Resolve)
+		admin.Get("/incidents/:id/updates", ih.ListUpdates)
+		admin.Post("/incidents/:id/updates", middleware.RequireAdmin, ih.PostUpdate)
 
 		akh := &APIKeyHandler{apikeys: d.APIKeys}
 		admin.Get("/api-keys", akh.List)
@@ -123,11 +161,43 @@ func New(d Deps) *fiber.App {
 		admin.Post("/users", middleware.RequireAdmin, uh.Create)
 		admin.Patch("/users/:id", middleware.RequireAdmin, uh.UpdateRole)
 		admin.Delete("/users/:id", middleware.RequireAdmin, uh.Archive)
+
+		if d.Settings != nil {
+			sgh := &SettingsHandler{settings: d.Settings}
+			admin.Get("/settings", sgh.Get)
+			admin.Patch("/settings", middleware.RequireAdmin, sgh.Update)
+		}
+
+		if d.Maintenance != nil {
+			mwh := &MaintenanceHandler{maintenance: d.Maintenance}
+			admin.Get("/maintenance-windows", mwh.List)
+			admin.Post("/maintenance-windows", middleware.RequireAdmin, mwh.Create)
+			admin.Get("/maintenance-windows/:id", mwh.Get)
+			admin.Patch("/maintenance-windows/:id", middleware.RequireAdmin, mwh.Update)
+			admin.Delete("/maintenance-windows/:id", middleware.RequireAdmin, mwh.Archive)
+		}
+
+		if d.TwoFactor != nil {
+			tfh := &TwoFactorHandler{tf: d.TwoFactor}
+			admin.Post("/2fa/setup", tfh.InitiateSetup)
+			admin.Post("/2fa/confirm", tfh.ConfirmSetup)
+			admin.Post("/2fa/disable", middleware.RequireAdmin, tfh.Disable)
+		}
+
+		if d.AuditRepo != nil {
+			ah := &AuditHandler{repo: d.AuditRepo}
+			admin.Get("/audit-log", middleware.RequireAdmin, ah.List)
+		}
 	}
 
-	// ── Public REST API (no auth — read-only status page data) ──────────────
-	if d.Cfg.PublicStatusEnabled {
+	// ── Public REST API (/api/v1 always registered; settings guard per-handler) ──
+	{
 		api := app.Group("/api/v1")
+
+		if d.Settings != nil {
+			psh := v1.NewPublicSettingsHandler(d.Settings)
+			api.Get("/settings", psh.GetSettings)
+		}
 
 		sh := v1.NewStatusHandler(d.Services, d.Monitors)
 		api.Get("/status", sh.GetStatus)
@@ -135,6 +205,26 @@ func New(d Deps) *fiber.App {
 		inh := v1.NewIncidentHandler(d.Incidents)
 		api.Get("/incidents", inh.List)
 		api.Get("/incidents/:id", inh.Get)
+		api.Get("/incidents/:id/updates", inh.ListUpdates)
+
+		if d.Uptime != nil {
+			uth := v1.NewUptimeHandler(d.Uptime, d.Services)
+			api.Get("/uptime", uth.GetAllUptime)
+			api.Get("/services/:id/uptime", uth.GetServiceUptime)
+			api.Get("/monitors/:id/latency", uth.GetMonitorLatency)
+			api.Get("/pages/:slug", uth.GetPageBySlug)
+			api.Get("/by-domain", uth.GetPageByDomain)
+		}
+
+		if d.Services != nil {
+			bh := v1.NewBadgeHandler(d.Services)
+			api.Get("/services/:id/badge.svg", bh.GetBadge)
+		}
+
+		if d.Settings != nil && d.Incidents != nil {
+			rh := v1.NewRSSHandler(d.Incidents, d.Settings)
+			api.Get("/rss", rh.GetFeed)
+		}
 	}
 
 	return app

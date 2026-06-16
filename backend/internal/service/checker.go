@@ -27,6 +27,7 @@ type CheckerService struct {
 	monitors     domain.MonitorRepository
 	checkResults domain.CheckResultRepository
 	incidents    domain.IncidentRepository
+	maintenance  domain.MaintenanceWindowRepository
 	dispatchers  []AlertDispatcher
 	metrics      *telemetry.Metrics
 	log          *zap.Logger
@@ -54,6 +55,11 @@ func (s *CheckerService) WithMetrics(m *telemetry.Metrics) *CheckerService {
 
 func (s *CheckerService) WithLogger(log *zap.Logger) *CheckerService {
 	s.log = log
+	return s
+}
+
+func (s *CheckerService) WithMaintenance(repo domain.MaintenanceWindowRepository) *CheckerService {
+	s.maintenance = repo
 	return s
 }
 
@@ -112,8 +118,15 @@ func (s *CheckerService) RunCheck(ctx context.Context, monitorID string) error {
 		if err != nil {
 			s.log.Error("increment failures", zap.Error(err))
 		} else if newCount >= mon.RetryCount {
-			if err := s.handleOutage(ctx, mon); err != nil {
-				s.log.Error("handle outage", zap.Error(err))
+			inMaintenance := false
+			if s.maintenance != nil {
+				active, _ := s.maintenance.IsActiveForService(ctx, mon.ServiceID)
+				inMaintenance = active
+			}
+			if !inMaintenance {
+				if err := s.handleOutage(ctx, mon); err != nil {
+					s.log.Error("handle outage", zap.Error(err))
+				}
 			}
 		}
 	} else {
@@ -156,14 +169,21 @@ func (s *CheckerService) handleOutage(ctx context.Context, mon *domain.Monitor) 
 	}
 
 	monID := mon.ID
-	if _, err = s.incidents.Create(ctx, domain.CreateIncidentParams{
+	inc, err := s.incidents.Create(ctx, domain.CreateIncidentParams{
 		ServiceID: mon.ServiceID,
 		MonitorID: &monID,
 		Title:     fmt.Sprintf("%s is down", mon.Name),
 		Severity:  "high",
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
+
+	_, _ = s.incidents.CreateUpdate(ctx, domain.CreateIncidentUpdateParams{
+		IncidentID: inc.ID,
+		Status:     "investigating",
+		Message:    "Automated monitoring detected an outage.",
+	})
 
 	if s.metrics != nil {
 		s.metrics.ActiveIncidents.Inc()
@@ -188,6 +208,12 @@ func (s *CheckerService) handleRecovery(ctx context.Context, mon *domain.Monitor
 	if _, err = s.incidents.Resolve(ctx, inc.ID, time.Now()); err != nil {
 		return err
 	}
+
+	_, _ = s.incidents.CreateUpdate(ctx, domain.CreateIncidentUpdateParams{
+		IncidentID: inc.ID,
+		Status:     "resolved",
+		Message:    "Service has recovered.",
+	})
 
 	if s.metrics != nil {
 		s.metrics.ActiveIncidents.Dec()

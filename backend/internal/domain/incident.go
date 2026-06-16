@@ -30,6 +30,20 @@ type UpdateIncidentParams struct {
 	Status   string
 }
 
+type IncidentUpdate struct {
+	ID         string    `json:"id"`
+	IncidentID string    `json:"incident_id"`
+	Status     string    `json:"status"`
+	Message    string    `json:"message"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type CreateIncidentUpdateParams struct {
+	IncidentID string
+	Status     string
+	Message    string
+}
+
 type IncidentRepository interface {
 	Create(ctx context.Context, p CreateIncidentParams) (*Incident, error)
 	GetByID(ctx context.Context, id string) (*Incident, error)
@@ -38,4 +52,6 @@ type IncidentRepository interface {
 	ListAll(ctx context.Context) ([]*Incident, error)
 	Resolve(ctx context.Context, id string, resolvedAt time.Time) (*Incident, error)
 	Update(ctx context.Context, id string, p UpdateIncidentParams) (*Incident, error)
+	CreateUpdate(ctx context.Context, p CreateIncidentUpdateParams) (*IncidentUpdate, error)
+	ListUpdates(ctx context.Context, incidentID string) ([]*IncidentUpdate, error)
 }

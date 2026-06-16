@@ -45,7 +45,7 @@ type DialogMode = "create" | "edit" | null;
 
 const defaultForm = {
   name: "",
-  type: "http" as "http" | "tcp",
+  type: "http" as import("@/types").MonitorType,
   url: "",
   host: "",
   port: "",

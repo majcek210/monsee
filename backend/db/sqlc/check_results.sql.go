@@ -11,6 +11,65 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getDailyUptimeForMonitor = `-- name: GetDailyUptimeForMonitor :many
+SELECT
+  date_trunc('day', checked_at)::date AS day,
+  count(*)                                    AS total,
+  count(*) FILTER (WHERE status = 'up')       AS up_count,
+  count(*) FILTER (WHERE status = 'down')     AS down_count,
+  count(*) FILTER (WHERE status = 'degraded') AS degraded_count
+FROM check_results
+WHERE monitor_id = $1
+  AND checked_at >= now() - ($2 || ' days')::interval
+  AND NOT EXISTS (
+    SELECT 1 FROM maintenance_windows mw
+    WHERE mw.service_id = (SELECT service_id FROM monitors WHERE id = $1)
+      AND mw.archived_at IS NULL
+      AND check_results.checked_at BETWEEN mw.starts_at AND mw.ends_at
+  )
+GROUP BY day
+ORDER BY day ASC
+`
+
+type GetDailyUptimeForMonitorParams struct {
+	MonitorID pgtype.UUID `json:"monitor_id"`
+	Column2   *string     `json:"column_2"`
+}
+
+type GetDailyUptimeForMonitorRow struct {
+	Day           pgtype.Date `json:"day"`
+	Total         int64       `json:"total"`
+	UpCount       int64       `json:"up_count"`
+	DownCount     int64       `json:"down_count"`
+	DegradedCount int64       `json:"degraded_count"`
+}
+
+func (q *Queries) GetDailyUptimeForMonitor(ctx context.Context, arg GetDailyUptimeForMonitorParams) ([]GetDailyUptimeForMonitorRow, error) {
+	rows, err := q.db.Query(ctx, getDailyUptimeForMonitor, arg.MonitorID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDailyUptimeForMonitorRow{}
+	for rows.Next() {
+		var i GetDailyUptimeForMonitorRow
+		if err := rows.Scan(
+			&i.Day,
+			&i.Total,
+			&i.UpCount,
+			&i.DownCount,
+			&i.DegradedCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLatestCheckForMonitor = `-- name: GetLatestCheckForMonitor :one
 SELECT id, monitor_id, status, response_time_ms, error, checked_at FROM check_results
 WHERE monitor_id = $1
@@ -93,6 +152,46 @@ func (q *Queries) ListCheckResultsByMonitor(ctx context.Context, arg ListCheckRe
 			&i.Error,
 			&i.CheckedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listResponseTimes = `-- name: ListResponseTimes :many
+SELECT checked_at, response_time_ms, status FROM check_results
+WHERE monitor_id = $1
+  AND checked_at >= now() - ($2 || ' hours')::interval
+  AND response_time_ms IS NOT NULL
+ORDER BY checked_at ASC
+LIMIT 500
+`
+
+type ListResponseTimesParams struct {
+	MonitorID pgtype.UUID `json:"monitor_id"`
+	Column2   *string     `json:"column_2"`
+}
+
+type ListResponseTimesRow struct {
+	CheckedAt      pgtype.Timestamptz `json:"checked_at"`
+	ResponseTimeMs *int32             `json:"response_time_ms"`
+	Status         string             `json:"status"`
+}
+
+func (q *Queries) ListResponseTimes(ctx context.Context, arg ListResponseTimesParams) ([]ListResponseTimesRow, error) {
+	rows, err := q.db.Query(ctx, listResponseTimes, arg.MonitorID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListResponseTimesRow{}
+	for rows.Next() {
+		var i ListResponseTimesRow
+		if err := rows.Scan(&i.CheckedAt, &i.ResponseTimeMs, &i.Status); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

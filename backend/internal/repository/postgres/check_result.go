@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -49,6 +51,64 @@ func (r *CheckResultRepo) ListByMonitor(ctx context.Context, monitorID string, l
 	out := make([]*domain.CheckResult, len(rows))
 	for i, row := range rows {
 		out[i] = checkResultToDomain(row)
+	}
+	return out, nil
+}
+
+func (r *CheckResultRepo) ListDailyUptime(ctx context.Context, monitorID string, days int32) ([]*domain.DailyUptime, error) {
+	mid, err := parseUUID(monitorID)
+	if err != nil {
+		return nil, domain.ValidationErr("monitor_id", "invalid monitor_id")
+	}
+	daysStr := fmt.Sprintf("%d", days)
+	rows, err := r.q.GetDailyUptimeForMonitor(ctx, sqlcdb.GetDailyUptimeForMonitorParams{
+		MonitorID: mid,
+		Column2:   &daysStr,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*domain.DailyUptime, len(rows))
+	for i, row := range rows {
+		var day time.Time
+		if row.Day.Valid {
+			day = time.Date(int(row.Day.Time.Year()), row.Day.Time.Month(), int(row.Day.Time.Day()), 0, 0, 0, 0, time.UTC)
+		}
+		out[i] = &domain.DailyUptime{
+			Day:      day,
+			Total:    row.Total,
+			Up:       row.UpCount,
+			Down:     row.DownCount,
+			Degraded: row.DegradedCount,
+		}
+	}
+	return out, nil
+}
+
+func (r *CheckResultRepo) ListResponseTimes(ctx context.Context, monitorID string, hours int32) ([]*domain.ResponseTimePoint, error) {
+	mid, err := parseUUID(monitorID)
+	if err != nil {
+		return nil, domain.ValidationErr("monitor_id", "invalid monitor_id")
+	}
+	hoursStr := fmt.Sprintf("%d", hours)
+	rows, err := r.q.ListResponseTimes(ctx, sqlcdb.ListResponseTimesParams{
+		MonitorID: mid,
+		Column2:   &hoursStr,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*domain.ResponseTimePoint, len(rows))
+	for i, row := range rows {
+		var ms int32
+		if row.ResponseTimeMs != nil {
+			ms = *row.ResponseTimeMs
+		}
+		out[i] = &domain.ResponseTimePoint{
+			CheckedAt:  tsToTime(row.CheckedAt),
+			ResponseMs: ms,
+			Status:     row.Status,
+		}
 	}
 	return out, nil
 }

@@ -3,7 +3,7 @@ import type { Monitor, CheckResult } from "@/types";
 
 export interface CreateMonitorInput {
   name: string;
-  type: "http" | "tcp";
+  type: "http" | "tcp" | "ssl" | "keyword" | "dns";
   url?: string;
   host?: string;
   port?: number;

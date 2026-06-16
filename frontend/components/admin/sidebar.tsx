@@ -6,12 +6,17 @@ import {
   Activity,
   AlertTriangle,
   Bell,
+  ClipboardList,
   Globe,
   Key,
   LayoutDashboard,
   LogOut,
+  ScrollText,
+  Settings,
+  Shield,
   Users,
   Webhook,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authApi } from "@/lib/api/auth";
@@ -19,12 +24,17 @@ import { useCurrentUser } from "@/lib/hooks/use-auth";
 import { toast } from "sonner";
 
 const navItems = [
+  { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/admin/services", label: "Services", icon: Globe },
   { href: "/admin/incidents", label: "Incidents", icon: AlertTriangle },
+  { href: "/admin/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/admin/api-keys", label: "API Keys", icon: Key },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/webhooks", label: "Webhooks", icon: Webhook },
-  { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/users", label: "Users", icon: Users, adminOnly: true },
+  { href: "/admin/security", label: "Security", icon: Shield },
+  { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, adminOnly: true },
+  { href: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },
 ];
 
 export function Sidebar() {
@@ -41,7 +51,7 @@ export function Sidebar() {
     }
   }
 
-  const items = navItems.filter((item) => item.href !== "/admin/users" || me?.role === "admin");
+  const items = navItems.filter((item) => !item.adminOnly || me?.role === "admin");
 
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-border bg-card">
@@ -51,8 +61,8 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
-        {items.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
+        {items.map(({ href, label, icon: Icon, exact }) => {
+          const active = exact ? pathname === href : (pathname === href || pathname.startsWith(href + "/"));
           return (
             <Link
               key={href}

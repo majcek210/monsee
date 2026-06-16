@@ -19,8 +19,9 @@ func (s *MonitorService) Create(ctx context.Context, p domain.CreateMonitorParam
 	if p.Name == "" {
 		return nil, domain.ValidationErr("name", "name is required")
 	}
-	if p.Type != "http" && p.Type != "tcp" {
-		return nil, domain.ValidationErr("type", "type must be http or tcp")
+	validTypes := map[string]bool{"http": true, "tcp": true, "ssl": true, "keyword": true, "dns": true}
+	if !validTypes[p.Type] {
+		return nil, domain.ValidationErr("type", "type must be http, tcp, ssl, keyword, or dns")
 	}
 
 	// Validate service exists

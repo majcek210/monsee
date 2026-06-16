@@ -21,3 +21,18 @@ SELECT count(*) FROM users WHERE role = 'admin' AND archived_at IS NULL;
 
 -- name: ArchiveUser :exec
 UPDATE users SET archived_at = now() WHERE id = $1;
+
+-- name: GetTOTPByUserID :one
+SELECT totp_secret, totp_enabled, totp_backup_codes FROM users WHERE id = $1;
+
+-- name: SetTOTPSecret :exec
+UPDATE users SET totp_secret = $2 WHERE id = $1;
+
+-- name: EnableTOTP :exec
+UPDATE users SET totp_enabled = true, totp_backup_codes = $2 WHERE id = $1;
+
+-- name: DisableTOTP :exec
+UPDATE users SET totp_enabled = false, totp_secret = NULL, totp_backup_codes = NULL WHERE id = $1;
+
+-- name: RemoveBackupCode :exec
+UPDATE users SET totp_backup_codes = array_remove(totp_backup_codes, $2) WHERE id = $1;

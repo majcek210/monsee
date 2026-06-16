@@ -52,26 +52,50 @@ type Incident struct {
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
+type IncidentUpdate struct {
+	ID         pgtype.UUID        `json:"id"`
+	IncidentID pgtype.UUID        `json:"incident_id"`
+	Status     string             `json:"status"`
+	Message    string             `json:"message"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
+type MaintenanceWindow struct {
+	ID          pgtype.UUID        `json:"id"`
+	ServiceID   pgtype.UUID        `json:"service_id"`
+	Title       string             `json:"title"`
+	Description *string            `json:"description"`
+	StartsAt    pgtype.Timestamptz `json:"starts_at"`
+	EndsAt      pgtype.Timestamptz `json:"ends_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ArchivedAt  pgtype.Timestamptz `json:"archived_at"`
+}
+
 type Monitor struct {
-	ID                  pgtype.UUID        `json:"id"`
-	ServiceID           pgtype.UUID        `json:"service_id"`
-	Name                string             `json:"name"`
-	Type                string             `json:"type"`
-	Url                 *string            `json:"url"`
-	Host                *string            `json:"host"`
-	Port                *int32             `json:"port"`
-	IntervalSeconds     int32              `json:"interval_seconds"`
-	TimeoutMs           int32              `json:"timeout_ms"`
-	RetryCount          int32              `json:"retry_count"`
-	ConsecutiveFailures int32              `json:"consecutive_failures"`
-	DegradedThresholdMs *int32             `json:"degraded_threshold_ms"`
-	HttpMethod          *string            `json:"http_method"`
-	HttpExpectedStatus  *int32             `json:"http_expected_status"`
-	Enabled             bool               `json:"enabled"`
-	NextCheckAt         pgtype.Timestamptz `json:"next_check_at"`
-	CreatedAt           pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
-	ArchivedAt          pgtype.Timestamptz `json:"archived_at"`
+	ID                     pgtype.UUID        `json:"id"`
+	ServiceID              pgtype.UUID        `json:"service_id"`
+	Name                   string             `json:"name"`
+	Type                   string             `json:"type"`
+	Url                    *string            `json:"url"`
+	Host                   *string            `json:"host"`
+	Port                   *int32             `json:"port"`
+	IntervalSeconds        int32              `json:"interval_seconds"`
+	TimeoutMs              int32              `json:"timeout_ms"`
+	RetryCount             int32              `json:"retry_count"`
+	ConsecutiveFailures    int32              `json:"consecutive_failures"`
+	DegradedThresholdMs    *int32             `json:"degraded_threshold_ms"`
+	HttpMethod             *string            `json:"http_method"`
+	HttpExpectedStatus     *int32             `json:"http_expected_status"`
+	Enabled                bool               `json:"enabled"`
+	NextCheckAt            pgtype.Timestamptz `json:"next_check_at"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	ArchivedAt             pgtype.Timestamptz `json:"archived_at"`
+	SslExpiryThresholdDays int32              `json:"ssl_expiry_threshold_days"`
+	KeywordMatch           *string            `json:"keyword_match"`
+	KeywordShouldExist     bool               `json:"keyword_should_exist"`
+	DnsRecordType          *string            `json:"dns_record_type"`
+	DnsExpectedValue       *string            `json:"dns_expected_value"`
 }
 
 type NotificationChannel struct {
@@ -85,21 +109,39 @@ type NotificationChannel struct {
 }
 
 type Service struct {
-	ID          pgtype.UUID        `json:"id"`
-	Name        string             `json:"name"`
-	Description *string            `json:"description"`
-	Status      string             `json:"status"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	ArchivedAt  pgtype.Timestamptz `json:"archived_at"`
+	ID                   pgtype.UUID        `json:"id"`
+	Name                 string             `json:"name"`
+	Description          *string            `json:"description"`
+	Status               string             `json:"status"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	ArchivedAt           pgtype.Timestamptz `json:"archived_at"`
+	PublicVisible        bool               `json:"public_visible"`
+	ShowUptime           bool               `json:"show_uptime"`
+	DedicatedPageEnabled bool               `json:"dedicated_page_enabled"`
+	Slug                 *string            `json:"slug"`
+	CustomDomain         *string            `json:"custom_domain"`
+	UptimeRangeDays      int32              `json:"uptime_range_days"`
+	StatusOverride       *string            `json:"status_override"`
+}
+
+type Setting struct {
+	ID                  int32              `json:"id"`
+	SiteTitle           string             `json:"site_title"`
+	LogoUrl             string             `json:"logo_url"`
+	PublicStatusEnabled bool               `json:"public_status_enabled"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 }
 
 type User struct {
-	ID           pgtype.UUID        `json:"id"`
-	Email        string             `json:"email"`
-	PasswordHash string             `json:"password_hash"`
-	Role         string             `json:"role"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	ArchivedAt   pgtype.Timestamptz `json:"archived_at"`
+	ID              pgtype.UUID        `json:"id"`
+	Email           string             `json:"email"`
+	PasswordHash    string             `json:"password_hash"`
+	Role            string             `json:"role"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	ArchivedAt      pgtype.Timestamptz `json:"archived_at"`
+	TotpSecret      *string            `json:"totp_secret"`
+	TotpEnabled     bool               `json:"totp_enabled"`
+	TotpBackupCodes []string           `json:"totp_backup_codes"`
 }
 
 type Webhook struct {

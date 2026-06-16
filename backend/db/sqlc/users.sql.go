@@ -34,7 +34,7 @@ func (q *Queries) CountActiveAdmins(ctx context.Context) (int64, error) {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash, role)
 VALUES ($1, $2, $3)
-RETURNING id, email, password_hash, role, created_at, archived_at
+RETURNING id, email, password_hash, role, created_at, archived_at, totp_secret, totp_enabled, totp_backup_codes
 `
 
 type CreateUserParams struct {
@@ -53,12 +53,55 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Role,
 		&i.CreatedAt,
 		&i.ArchivedAt,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.TotpBackupCodes,
 	)
 	return i, err
 }
 
+const disableTOTP = `-- name: DisableTOTP :exec
+UPDATE users SET totp_enabled = false, totp_secret = NULL, totp_backup_codes = NULL WHERE id = $1
+`
+
+func (q *Queries) DisableTOTP(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, disableTOTP, id)
+	return err
+}
+
+const enableTOTP = `-- name: EnableTOTP :exec
+UPDATE users SET totp_enabled = true, totp_backup_codes = $2 WHERE id = $1
+`
+
+type EnableTOTPParams struct {
+	ID              pgtype.UUID `json:"id"`
+	TotpBackupCodes []string    `json:"totp_backup_codes"`
+}
+
+func (q *Queries) EnableTOTP(ctx context.Context, arg EnableTOTPParams) error {
+	_, err := q.db.Exec(ctx, enableTOTP, arg.ID, arg.TotpBackupCodes)
+	return err
+}
+
+const getTOTPByUserID = `-- name: GetTOTPByUserID :one
+SELECT totp_secret, totp_enabled, totp_backup_codes FROM users WHERE id = $1
+`
+
+type GetTOTPByUserIDRow struct {
+	TotpSecret      *string  `json:"totp_secret"`
+	TotpEnabled     bool     `json:"totp_enabled"`
+	TotpBackupCodes []string `json:"totp_backup_codes"`
+}
+
+func (q *Queries) GetTOTPByUserID(ctx context.Context, id pgtype.UUID) (GetTOTPByUserIDRow, error) {
+	row := q.db.QueryRow(ctx, getTOTPByUserID, id)
+	var i GetTOTPByUserIDRow
+	err := row.Scan(&i.TotpSecret, &i.TotpEnabled, &i.TotpBackupCodes)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, role, created_at, archived_at FROM users WHERE email = $1 AND archived_at IS NULL
+SELECT id, email, password_hash, role, created_at, archived_at, totp_secret, totp_enabled, totp_backup_codes FROM users WHERE email = $1 AND archived_at IS NULL
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -71,12 +114,15 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Role,
 		&i.CreatedAt,
 		&i.ArchivedAt,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.TotpBackupCodes,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, role, created_at, archived_at FROM users WHERE id = $1 AND archived_at IS NULL
+SELECT id, email, password_hash, role, created_at, archived_at, totp_secret, totp_enabled, totp_backup_codes FROM users WHERE id = $1 AND archived_at IS NULL
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -89,12 +135,15 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.Role,
 		&i.CreatedAt,
 		&i.ArchivedAt,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.TotpBackupCodes,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, password_hash, role, created_at, archived_at FROM users WHERE archived_at IS NULL ORDER BY created_at
+SELECT id, email, password_hash, role, created_at, archived_at, totp_secret, totp_enabled, totp_backup_codes FROM users WHERE archived_at IS NULL ORDER BY created_at
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -113,6 +162,9 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Role,
 			&i.CreatedAt,
 			&i.ArchivedAt,
+			&i.TotpSecret,
+			&i.TotpEnabled,
+			&i.TotpBackupCodes,
 		); err != nil {
 			return nil, err
 		}
@@ -124,9 +176,37 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const removeBackupCode = `-- name: RemoveBackupCode :exec
+UPDATE users SET totp_backup_codes = array_remove(totp_backup_codes, $2) WHERE id = $1
+`
+
+type RemoveBackupCodeParams struct {
+	ID          pgtype.UUID `json:"id"`
+	ArrayRemove interface{} `json:"array_remove"`
+}
+
+func (q *Queries) RemoveBackupCode(ctx context.Context, arg RemoveBackupCodeParams) error {
+	_, err := q.db.Exec(ctx, removeBackupCode, arg.ID, arg.ArrayRemove)
+	return err
+}
+
+const setTOTPSecret = `-- name: SetTOTPSecret :exec
+UPDATE users SET totp_secret = $2 WHERE id = $1
+`
+
+type SetTOTPSecretParams struct {
+	ID         pgtype.UUID `json:"id"`
+	TotpSecret *string     `json:"totp_secret"`
+}
+
+func (q *Queries) SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error {
+	_, err := q.db.Exec(ctx, setTOTPSecret, arg.ID, arg.TotpSecret)
+	return err
+}
+
 const updateUserRole = `-- name: UpdateUserRole :one
 UPDATE users SET role = $2 WHERE id = $1 AND archived_at IS NULL
-RETURNING id, email, password_hash, role, created_at, archived_at
+RETURNING id, email, password_hash, role, created_at, archived_at, totp_secret, totp_enabled, totp_backup_codes
 `
 
 type UpdateUserRoleParams struct {
@@ -144,6 +224,9 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 		&i.Role,
 		&i.CreatedAt,
 		&i.ArchivedAt,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.TotpBackupCodes,
 	)
 	return i, err
 }

@@ -24,26 +24,34 @@ const createMonitor = `-- name: CreateMonitor :one
 INSERT INTO monitors (
   service_id, name, type, url, host, port,
   interval_seconds, timeout_ms, retry_count,
-  degraded_threshold_ms, http_method, http_expected_status
+  degraded_threshold_ms, http_method, http_expected_status,
+  ssl_expiry_threshold_days, keyword_match, keyword_should_exist,
+  dns_record_type, dns_expected_value
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+  $13, $14, $15, $16, $17
 )
-RETURNING id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at
+RETURNING id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at, ssl_expiry_threshold_days, keyword_match, keyword_should_exist, dns_record_type, dns_expected_value
 `
 
 type CreateMonitorParams struct {
-	ServiceID           pgtype.UUID `json:"service_id"`
-	Name                string      `json:"name"`
-	Type                string      `json:"type"`
-	Url                 *string     `json:"url"`
-	Host                *string     `json:"host"`
-	Port                *int32      `json:"port"`
-	IntervalSeconds     int32       `json:"interval_seconds"`
-	TimeoutMs           int32       `json:"timeout_ms"`
-	RetryCount          int32       `json:"retry_count"`
-	DegradedThresholdMs *int32      `json:"degraded_threshold_ms"`
-	HttpMethod          *string     `json:"http_method"`
-	HttpExpectedStatus  *int32      `json:"http_expected_status"`
+	ServiceID              pgtype.UUID `json:"service_id"`
+	Name                   string      `json:"name"`
+	Type                   string      `json:"type"`
+	Url                    *string     `json:"url"`
+	Host                   *string     `json:"host"`
+	Port                   *int32      `json:"port"`
+	IntervalSeconds        int32       `json:"interval_seconds"`
+	TimeoutMs              int32       `json:"timeout_ms"`
+	RetryCount             int32       `json:"retry_count"`
+	DegradedThresholdMs    *int32      `json:"degraded_threshold_ms"`
+	HttpMethod             *string     `json:"http_method"`
+	HttpExpectedStatus     *int32      `json:"http_expected_status"`
+	SslExpiryThresholdDays int32       `json:"ssl_expiry_threshold_days"`
+	KeywordMatch           *string     `json:"keyword_match"`
+	KeywordShouldExist     bool        `json:"keyword_should_exist"`
+	DnsRecordType          *string     `json:"dns_record_type"`
+	DnsExpectedValue       *string     `json:"dns_expected_value"`
 }
 
 func (q *Queries) CreateMonitor(ctx context.Context, arg CreateMonitorParams) (Monitor, error) {
@@ -60,6 +68,11 @@ func (q *Queries) CreateMonitor(ctx context.Context, arg CreateMonitorParams) (M
 		arg.DegradedThresholdMs,
 		arg.HttpMethod,
 		arg.HttpExpectedStatus,
+		arg.SslExpiryThresholdDays,
+		arg.KeywordMatch,
+		arg.KeywordShouldExist,
+		arg.DnsRecordType,
+		arg.DnsExpectedValue,
 	)
 	var i Monitor
 	err := row.Scan(
@@ -82,12 +95,17 @@ func (q *Queries) CreateMonitor(ctx context.Context, arg CreateMonitorParams) (M
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ArchivedAt,
+		&i.SslExpiryThresholdDays,
+		&i.KeywordMatch,
+		&i.KeywordShouldExist,
+		&i.DnsRecordType,
+		&i.DnsExpectedValue,
 	)
 	return i, err
 }
 
 const getMonitorByID = `-- name: GetMonitorByID :one
-SELECT id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at FROM monitors
+SELECT id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at, ssl_expiry_threshold_days, keyword_match, keyword_should_exist, dns_record_type, dns_expected_value FROM monitors
 WHERE id = $1 AND archived_at IS NULL
 `
 
@@ -114,6 +132,11 @@ func (q *Queries) GetMonitorByID(ctx context.Context, id pgtype.UUID) (Monitor, 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ArchivedAt,
+		&i.SslExpiryThresholdDays,
+		&i.KeywordMatch,
+		&i.KeywordShouldExist,
+		&i.DnsRecordType,
+		&i.DnsExpectedValue,
 	)
 	return i, err
 }
@@ -133,7 +156,7 @@ func (q *Queries) IncrementConsecutiveFailures(ctx context.Context, id pgtype.UU
 }
 
 const listDueMonitors = `-- name: ListDueMonitors :many
-SELECT id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at FROM monitors
+SELECT id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at, ssl_expiry_threshold_days, keyword_match, keyword_should_exist, dns_record_type, dns_expected_value FROM monitors
 WHERE enabled = true
   AND archived_at IS NULL
   AND next_check_at <= now()
@@ -170,6 +193,11 @@ func (q *Queries) ListDueMonitors(ctx context.Context) ([]Monitor, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ArchivedAt,
+			&i.SslExpiryThresholdDays,
+			&i.KeywordMatch,
+			&i.KeywordShouldExist,
+			&i.DnsRecordType,
+			&i.DnsExpectedValue,
 		); err != nil {
 			return nil, err
 		}
@@ -182,7 +210,7 @@ func (q *Queries) ListDueMonitors(ctx context.Context) ([]Monitor, error) {
 }
 
 const listMonitorsByService = `-- name: ListMonitorsByService :many
-SELECT id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at FROM monitors
+SELECT id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at, ssl_expiry_threshold_days, keyword_match, keyword_should_exist, dns_record_type, dns_expected_value FROM monitors
 WHERE service_id = $1 AND archived_at IS NULL
 ORDER BY created_at DESC
 `
@@ -216,6 +244,11 @@ func (q *Queries) ListMonitorsByService(ctx context.Context, serviceID pgtype.UU
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ArchivedAt,
+			&i.SslExpiryThresholdDays,
+			&i.KeywordMatch,
+			&i.KeywordShouldExist,
+			&i.DnsRecordType,
+			&i.DnsExpectedValue,
 		); err != nil {
 			return nil, err
 		}
@@ -254,24 +287,32 @@ UPDATE monitors
 SET name = $2, url = $3, host = $4, port = $5,
     interval_seconds = $6, timeout_ms = $7, retry_count = $8,
     degraded_threshold_ms = $9, http_method = $10, http_expected_status = $11,
-    enabled = $12, updated_at = now()
+    enabled = $12,
+    ssl_expiry_threshold_days = $13, keyword_match = $14, keyword_should_exist = $15,
+    dns_record_type = $16, dns_expected_value = $17,
+    updated_at = now()
 WHERE id = $1
-RETURNING id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at
+RETURNING id, service_id, name, type, url, host, port, interval_seconds, timeout_ms, retry_count, consecutive_failures, degraded_threshold_ms, http_method, http_expected_status, enabled, next_check_at, created_at, updated_at, archived_at, ssl_expiry_threshold_days, keyword_match, keyword_should_exist, dns_record_type, dns_expected_value
 `
 
 type UpdateMonitorParams struct {
-	ID                  pgtype.UUID `json:"id"`
-	Name                string      `json:"name"`
-	Url                 *string     `json:"url"`
-	Host                *string     `json:"host"`
-	Port                *int32      `json:"port"`
-	IntervalSeconds     int32       `json:"interval_seconds"`
-	TimeoutMs           int32       `json:"timeout_ms"`
-	RetryCount          int32       `json:"retry_count"`
-	DegradedThresholdMs *int32      `json:"degraded_threshold_ms"`
-	HttpMethod          *string     `json:"http_method"`
-	HttpExpectedStatus  *int32      `json:"http_expected_status"`
-	Enabled             bool        `json:"enabled"`
+	ID                     pgtype.UUID `json:"id"`
+	Name                   string      `json:"name"`
+	Url                    *string     `json:"url"`
+	Host                   *string     `json:"host"`
+	Port                   *int32      `json:"port"`
+	IntervalSeconds        int32       `json:"interval_seconds"`
+	TimeoutMs              int32       `json:"timeout_ms"`
+	RetryCount             int32       `json:"retry_count"`
+	DegradedThresholdMs    *int32      `json:"degraded_threshold_ms"`
+	HttpMethod             *string     `json:"http_method"`
+	HttpExpectedStatus     *int32      `json:"http_expected_status"`
+	Enabled                bool        `json:"enabled"`
+	SslExpiryThresholdDays int32       `json:"ssl_expiry_threshold_days"`
+	KeywordMatch           *string     `json:"keyword_match"`
+	KeywordShouldExist     bool        `json:"keyword_should_exist"`
+	DnsRecordType          *string     `json:"dns_record_type"`
+	DnsExpectedValue       *string     `json:"dns_expected_value"`
 }
 
 func (q *Queries) UpdateMonitor(ctx context.Context, arg UpdateMonitorParams) (Monitor, error) {
@@ -288,6 +329,11 @@ func (q *Queries) UpdateMonitor(ctx context.Context, arg UpdateMonitorParams) (M
 		arg.HttpMethod,
 		arg.HttpExpectedStatus,
 		arg.Enabled,
+		arg.SslExpiryThresholdDays,
+		arg.KeywordMatch,
+		arg.KeywordShouldExist,
+		arg.DnsRecordType,
+		arg.DnsExpectedValue,
 	)
 	var i Monitor
 	err := row.Scan(
@@ -310,6 +356,11 @@ func (q *Queries) UpdateMonitor(ctx context.Context, arg UpdateMonitorParams) (M
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ArchivedAt,
+		&i.SslExpiryThresholdDays,
+		&i.KeywordMatch,
+		&i.KeywordShouldExist,
+		&i.DnsRecordType,
+		&i.DnsExpectedValue,
 	)
 	return i, err
 }

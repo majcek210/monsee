@@ -6,6 +6,7 @@ import (
 	"github.com/majcek210/monsee/internal/service"
 )
 
+
 type IncidentHandler struct {
 	incidents *service.IncidentService
 }
@@ -28,5 +29,17 @@ func (h *IncidentHandler) Get(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(inc)
+	updates, err := h.incidents.ListUpdates(c.Context(), inc.ID)
+	if err != nil {
+		updates = nil
+	}
+	return c.JSON(fiber.Map{"incident": inc, "updates": updates})
+}
+
+func (h *IncidentHandler) ListUpdates(c fiber.Ctx) error {
+	updates, err := h.incidents.ListUpdates(c.Context(), c.Params("id"))
+	if err != nil {
+		return err
+	}
+	return c.JSON(updates)
 }

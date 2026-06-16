@@ -12,10 +12,9 @@ type Config struct {
 	RedisURL            string
 	JWTSecret           string
 	EncryptionKey       string // exactly 32 bytes
-	AppEnv              string // "development" | "production"
-	Port                string
-	PublicStatusEnabled bool   // enable /api/v1/* public routes + status page
-	FrontendURL         string // public URL of the admin dashboard, used to link back from alerts
+	AppEnv      string // "development" | "production"
+	Port        string
+	FrontendURL string // public URL of the admin dashboard, used to link back from alerts
 
 	SMTPHost string
 	SMTPPort int
@@ -30,10 +29,9 @@ func Load() (*Config, error) {
 		RedisURL:            os.Getenv("REDIS_URL"),
 		JWTSecret:           os.Getenv("JWT_SECRET"),
 		EncryptionKey:       os.Getenv("ENCRYPTION_KEY"),
-		AppEnv:              getEnvOr("APP_ENV", "development"),
-		Port:                getEnvOr("PORT", "8080"),
-		PublicStatusEnabled: getEnvOr("PUBLIC_STATUS_ENABLED", "true") == "true",
-		FrontendURL:   strings.TrimRight(os.Getenv("FRONTEND_URL"), "/"),
+		AppEnv:      getEnvOr("APP_ENV", "development"),
+		Port:        getEnvOr("PORT", "8080"),
+		FrontendURL: strings.TrimRight(os.Getenv("FRONTEND_URL"), "/"),
 		SMTPHost:      os.Getenv("SMTP_HOST"),
 		SMTPUser:      os.Getenv("SMTP_USER"),
 		SMTPPass:      os.Getenv("SMTP_PASS"),

@@ -60,3 +60,41 @@ func (s *IncidentService) Update(ctx context.Context, id string, p domain.Update
 	}
 	return s.incidents.Update(ctx, id, p)
 }
+
+var validUpdateStatuses = map[string]bool{
+	"investigating": true,
+	"identified":    true,
+	"monitoring":    true,
+	"resolved":      true,
+}
+
+func (s *IncidentService) PostUpdate(ctx context.Context, incidentID, status, message string) (*domain.IncidentUpdate, error) {
+	if !validUpdateStatuses[status] {
+		return nil, domain.ValidationErr("status", "status must be investigating, identified, monitoring, or resolved")
+	}
+	if message == "" {
+		return nil, domain.ValidationErr("message", "message is required")
+	}
+	if _, err := s.incidents.GetByID(ctx, incidentID); err != nil {
+		return nil, err
+	}
+	update, err := s.incidents.CreateUpdate(ctx, domain.CreateIncidentUpdateParams{
+		IncidentID: incidentID,
+		Status:     status,
+		Message:    message,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if status == "resolved" {
+		if _, err := s.incidents.Resolve(ctx, incidentID, time.Now()); err != nil {
+			// Non-fatal if already resolved
+			_ = err
+		}
+	}
+	return update, nil
+}
+
+func (s *IncidentService) ListUpdates(ctx context.Context, incidentID string) ([]*domain.IncidentUpdate, error) {
+	return s.incidents.ListUpdates(ctx, incidentID)
+}

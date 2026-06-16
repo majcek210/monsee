@@ -54,6 +54,7 @@ func main() {
 	incidentRepo    := postgres.NewIncidentRepo(pool)
 	notifRepo       := postgres.NewNotificationRepo(pool)
 	webhookRepo     := postgres.NewWebhookRepo(pool)
+	maintenanceRepo := postgres.NewMaintenanceRepo(pool)
 
 	// ── Dispatchers ───────────────────────────────────────────────────────────
 	smtpCfg := notifications.SMTPConfig{
@@ -73,7 +74,7 @@ func main() {
 		incidentRepo,
 		notifDispatcher,
 		webhookDispatcher,
-	).WithMetrics(metrics).WithLogger(logger)
+	).WithMetrics(metrics).WithLogger(logger).WithMaintenance(maintenanceRepo)
 
 	// ── Asynq ─────────────────────────────────────────────────────────────────
 	redisAddr := strings.TrimPrefix(cfg.RedisURL, "redis://")

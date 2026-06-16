@@ -80,23 +80,30 @@ func main() {
 	encKey := []byte(cfg.EncryptionKey)
 
 	// ── Repositories ──────────────────────────────────────────────────────────
-	userRepo     := postgres.NewUserRepo(pool)
-	serviceRepo  := postgres.NewServiceRepo(pool)
-	monitorRepo  := postgres.NewMonitorRepo(pool)
-	incidentRepo := postgres.NewIncidentRepo(pool)
-	apikeyRepo   := postgres.NewAPIKeyRepo(pool)
-	notifRepo    := postgres.NewNotificationRepo(pool)
-	webhookRepo  := postgres.NewWebhookRepo(pool)
-	auditRepo    := postgres.NewAuditRepo(pool)
+	userRepo        := postgres.NewUserRepo(pool)
+	serviceRepo     := postgres.NewServiceRepo(pool)
+	monitorRepo     := postgres.NewMonitorRepo(pool)
+	checkResultRepo := postgres.NewCheckResultRepo(pool)
+	incidentRepo    := postgres.NewIncidentRepo(pool)
+	apikeyRepo      := postgres.NewAPIKeyRepo(pool)
+	notifRepo       := postgres.NewNotificationRepo(pool)
+	webhookRepo     := postgres.NewWebhookRepo(pool)
+	auditRepo       := postgres.NewAuditRepo(pool)
+	settingsRepo    := postgres.NewSettingsRepo(pool)
+	maintenanceRepo := postgres.NewMaintenanceRepo(pool)
 
 	// ── Services ──────────────────────────────────────────────────────────────
-	userSvc     := service.NewUserService(userRepo)
-	serviceSvc  := service.NewMonitoringService(serviceRepo)
-	monitorSvc  := service.NewMonitorService(monitorRepo, serviceRepo)
-	incidentSvc := service.NewIncidentService(incidentRepo, serviceRepo)
-	apikeySvc   := service.NewAPIKeyService(apikeyRepo)
-	notifSvc    := service.NewNotificationService(notifRepo, encKey)
-	webhookSvc  := service.NewWebhookService(webhookRepo, encKey)
+	userSvc        := service.NewUserService(userRepo)
+	serviceSvc     := service.NewMonitoringService(serviceRepo)
+	monitorSvc     := service.NewMonitorService(monitorRepo, serviceRepo)
+	incidentSvc    := service.NewIncidentService(incidentRepo, serviceRepo)
+	apikeySvc      := service.NewAPIKeyService(apikeyRepo)
+	notifSvc       := service.NewNotificationService(notifRepo, encKey)
+	webhookSvc     := service.NewWebhookService(webhookRepo, encKey)
+	settingsSvc    := service.NewSettingsService(settingsRepo)
+	uptimeSvc      := service.NewUptimeService(serviceRepo, monitorRepo, checkResultRepo)
+	maintenanceSvc := service.NewMaintenanceService(maintenanceRepo, serviceRepo)
+	twoFactorSvc   := service.NewTwoFactorService(userRepo, encKey)
 
 	// ── HTTP app ──────────────────────────────────────────────────────────────
 	app := handler.New(handler.Deps{
@@ -108,6 +115,11 @@ func main() {
 		APIKeys:       apikeySvc,
 		Notifications: notifSvc,
 		Webhooks:      webhookSvc,
+		Settings:      settingsSvc,
+		Uptime:        uptimeSvc,
+		Maintenance:   maintenanceSvc,
+		TwoFactor:     twoFactorSvc,
+		AuditRepo:     auditRepo,
 		Limiter:       limiter,
 		Audit:         auditRepo,
 		Metrics:       metrics,

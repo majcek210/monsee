@@ -79,3 +79,26 @@ func (h *IncidentHandler) Resolve(c fiber.Ctx) error {
 	}
 	return c.JSON(inc)
 }
+
+func (h *IncidentHandler) PostUpdate(c fiber.Ctx) error {
+	var body struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := c.Bind().Body(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
+	}
+	update, err := h.incidents.PostUpdate(c.Context(), c.Params("id"), body.Status, body.Message)
+	if err != nil {
+		return err
+	}
+	return c.Status(fiber.StatusCreated).JSON(update)
+}
+
+func (h *IncidentHandler) ListUpdates(c fiber.Ctx) error {
+	updates, err := h.incidents.ListUpdates(c.Context(), c.Params("id"))
+	if err != nil {
+		return err
+	}
+	return c.JSON(updates)
+}

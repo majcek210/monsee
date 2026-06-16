@@ -13,7 +13,7 @@ import (
 
 const archiveService = `-- name: ArchiveService :exec
 UPDATE services
-SET archived_at = now()
+SET archived_at = now(), slug = NULL, custom_domain = NULL
 WHERE id = $1
 `
 
@@ -25,7 +25,7 @@ func (q *Queries) ArchiveService(ctx context.Context, id pgtype.UUID) error {
 const createService = `-- name: CreateService :one
 INSERT INTO services (name, description)
 VALUES ($1, $2)
-RETURNING id, name, description, status, created_at, archived_at
+RETURNING id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override
 `
 
 type CreateServiceParams struct {
@@ -43,12 +43,44 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		&i.Status,
 		&i.CreatedAt,
 		&i.ArchivedAt,
+		&i.PublicVisible,
+		&i.ShowUptime,
+		&i.DedicatedPageEnabled,
+		&i.Slug,
+		&i.CustomDomain,
+		&i.UptimeRangeDays,
+		&i.StatusOverride,
+	)
+	return i, err
+}
+
+const getServiceByCustomDomain = `-- name: GetServiceByCustomDomain :one
+SELECT id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override FROM services WHERE custom_domain = $1 AND archived_at IS NULL
+`
+
+func (q *Queries) GetServiceByCustomDomain(ctx context.Context, customDomain *string) (Service, error) {
+	row := q.db.QueryRow(ctx, getServiceByCustomDomain, customDomain)
+	var i Service
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Status,
+		&i.CreatedAt,
+		&i.ArchivedAt,
+		&i.PublicVisible,
+		&i.ShowUptime,
+		&i.DedicatedPageEnabled,
+		&i.Slug,
+		&i.CustomDomain,
+		&i.UptimeRangeDays,
+		&i.StatusOverride,
 	)
 	return i, err
 }
 
 const getServiceByID = `-- name: GetServiceByID :one
-SELECT id, name, description, status, created_at, archived_at FROM services
+SELECT id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override FROM services
 WHERE id = $1 AND archived_at IS NULL
 `
 
@@ -62,12 +94,44 @@ func (q *Queries) GetServiceByID(ctx context.Context, id pgtype.UUID) (Service, 
 		&i.Status,
 		&i.CreatedAt,
 		&i.ArchivedAt,
+		&i.PublicVisible,
+		&i.ShowUptime,
+		&i.DedicatedPageEnabled,
+		&i.Slug,
+		&i.CustomDomain,
+		&i.UptimeRangeDays,
+		&i.StatusOverride,
+	)
+	return i, err
+}
+
+const getServiceBySlug = `-- name: GetServiceBySlug :one
+SELECT id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override FROM services WHERE slug = $1 AND archived_at IS NULL
+`
+
+func (q *Queries) GetServiceBySlug(ctx context.Context, slug *string) (Service, error) {
+	row := q.db.QueryRow(ctx, getServiceBySlug, slug)
+	var i Service
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Status,
+		&i.CreatedAt,
+		&i.ArchivedAt,
+		&i.PublicVisible,
+		&i.ShowUptime,
+		&i.DedicatedPageEnabled,
+		&i.Slug,
+		&i.CustomDomain,
+		&i.UptimeRangeDays,
+		&i.StatusOverride,
 	)
 	return i, err
 }
 
 const listServices = `-- name: ListServices :many
-SELECT id, name, description, status, created_at, archived_at FROM services
+SELECT id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override FROM services
 WHERE archived_at IS NULL
 ORDER BY created_at DESC
 `
@@ -88,6 +152,13 @@ func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
 			&i.Status,
 			&i.CreatedAt,
 			&i.ArchivedAt,
+			&i.PublicVisible,
+			&i.ShowUptime,
+			&i.DedicatedPageEnabled,
+			&i.Slug,
+			&i.CustomDomain,
+			&i.UptimeRangeDays,
+			&i.StatusOverride,
 		); err != nil {
 			return nil, err
 		}
@@ -101,28 +172,49 @@ func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
 
 const updateService = `-- name: UpdateService :one
 UPDATE services
-SET name        = COALESCE($2, name),
-    description = COALESCE($3, description),
-    status      = COALESCE($4, status)
+SET name                  = COALESCE($2, name),
+    description           = COALESCE($3, description),
+    status                = COALESCE($4, status),
+    public_visible        = COALESCE($5, public_visible),
+    show_uptime           = COALESCE($6, show_uptime),
+    dedicated_page_enabled = COALESCE($7, dedicated_page_enabled),
+    uptime_range_days     = COALESCE($8, uptime_range_days),
+    slug                  = CASE WHEN $9::text = '' THEN NULL ELSE COALESCE($9, slug) END,
+    custom_domain         = CASE WHEN $10::text = '' THEN NULL ELSE COALESCE($10, custom_domain) END,
+    status_override       = CASE WHEN $11::text = '' THEN NULL ELSE COALESCE($11, status_override) END
 WHERE id = $1
-RETURNING id, name, description, status, created_at, archived_at
+RETURNING id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override
 `
 
 type UpdateServiceParams struct {
-	ID          pgtype.UUID `json:"id"`
-	Name        *string     `json:"name"`
-	Description *string     `json:"description"`
-	Status      *string     `json:"status"`
+	ID                   pgtype.UUID `json:"id"`
+	Name                 *string     `json:"name"`
+	Description          *string     `json:"description"`
+	Status               *string     `json:"status"`
+	PublicVisible        *bool       `json:"public_visible"`
+	ShowUptime           *bool       `json:"show_uptime"`
+	DedicatedPageEnabled *bool       `json:"dedicated_page_enabled"`
+	UptimeRangeDays      *int32      `json:"uptime_range_days"`
+	Slug                 *string     `json:"slug"`
+	CustomDomain         *string     `json:"custom_domain"`
+	StatusOverride       *string     `json:"status_override"`
 }
 
-// Partial update: any narg left NULL keeps the existing column value, so the
-// handler can omit name/description/status independently.
+// Partial update: any narg left NULL keeps the existing column value.
+// slug/custom_domain/status_override use CASE to allow clearing to NULL.
 func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error) {
 	row := q.db.QueryRow(ctx, updateService,
 		arg.ID,
 		arg.Name,
 		arg.Description,
 		arg.Status,
+		arg.PublicVisible,
+		arg.ShowUptime,
+		arg.DedicatedPageEnabled,
+		arg.UptimeRangeDays,
+		arg.Slug,
+		arg.CustomDomain,
+		arg.StatusOverride,
 	)
 	var i Service
 	err := row.Scan(
@@ -132,6 +224,13 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		&i.Status,
 		&i.CreatedAt,
 		&i.ArchivedAt,
+		&i.PublicVisible,
+		&i.ShowUptime,
+		&i.DedicatedPageEnabled,
+		&i.Slug,
+		&i.CustomDomain,
+		&i.UptimeRangeDays,
+		&i.StatusOverride,
 	)
 	return i, err
 }
