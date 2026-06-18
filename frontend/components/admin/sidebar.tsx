@@ -13,7 +13,7 @@ import {
   LogOut,
   ScrollText,
   Settings,
-  Shield,
+  UserCircle,
   Users,
   Webhook,
   Wrench,
@@ -23,18 +23,44 @@ import { authApi } from "@/lib/api/auth";
 import { useCurrentUser } from "@/lib/hooks/use-auth";
 import { toast } from "sonner";
 
-const navItems = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/admin/services", label: "Services", icon: Globe },
-  { href: "/admin/incidents", label: "Incidents", icon: AlertTriangle },
-  { href: "/admin/maintenance", label: "Maintenance", icon: Wrench },
-  { href: "/admin/api-keys", label: "API Keys", icon: Key },
-  { href: "/admin/notifications", label: "Notifications", icon: Bell },
-  { href: "/admin/webhooks", label: "Webhooks", icon: Webhook },
-  { href: "/admin/users", label: "Users", icon: Users, adminOnly: true },
-  { href: "/admin/security", label: "Security", icon: Shield },
-  { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, adminOnly: true },
-  { href: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+  adminOnly?: boolean;
+};
+
+const navGroups: { title: string | null; items: NavItem[] }[] = [
+  {
+    title: null,
+    items: [{ href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true }],
+  },
+  {
+    title: "Monitoring",
+    items: [
+      { href: "/admin/services", label: "Services", icon: Globe },
+      { href: "/admin/incidents", label: "Incidents", icon: AlertTriangle },
+      { href: "/admin/maintenance", label: "Maintenance", icon: Wrench },
+    ],
+  },
+  {
+    title: "Alerting",
+    items: [
+      { href: "/admin/notifications", label: "Notifications", icon: Bell },
+      { href: "/admin/webhooks", label: "Webhooks", icon: Webhook },
+    ],
+  },
+  {
+    title: "Configuration",
+    items: [
+      { href: "/admin/api-keys", label: "API Keys", icon: Key },
+      { href: "/admin/users", label: "Users", icon: Users, adminOnly: true },
+      { href: "/admin/profile", label: "My Profile", icon: UserCircle },
+      { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, adminOnly: true },
+      { href: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -51,7 +77,12 @@ export function Sidebar() {
     }
   }
 
-  const items = navItems.filter((item) => !item.adminOnly || me?.role === "admin");
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.adminOnly || me?.role === "admin"),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-border bg-card">
@@ -60,25 +91,36 @@ export function Sidebar() {
         <span className="font-semibold text-sm tracking-tight">monsee</span>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
-        {items.map(({ href, label, icon: Icon, exact }) => {
-          const active = exact ? pathname === href : (pathname === href || pathname.startsWith(href + "/"));
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
-                active
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto p-2 space-y-4">
+        {visibleGroups.map((group, gi) => (
+          <div key={group.title ?? gi} className="space-y-0.5">
+            {group.title && (
+              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                {group.title}
+              </p>
+            )}
+            {group.items.map(({ href, label, icon: Icon, exact }) => {
+              const active = exact
+                ? pathname === href
+                : pathname === href || pathname.startsWith(href + "/");
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
+                    active
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="p-2 border-t border-border">

@@ -5,10 +5,27 @@ import (
 	"fmt"
 
 	"github.com/majcek210/monsee/internal/domain"
+	"github.com/majcek210/monsee/pkg/netguard"
 )
 
 // Run dispatches to the appropriate check implementation based on monitor type.
 func Run(ctx context.Context, m *domain.Monitor) Result {
+	// SSRF guard: validate the destination is a public address before dispatching.
+	switch m.Type {
+	case "http", "keyword":
+		if m.URL != nil && *m.URL != "" {
+			if err := netguard.CheckPublicURL(*m.URL); err != nil {
+				return Result{Status: "down", Error: err.Error()}
+			}
+		}
+	case "tcp", "ssl", "dns":
+		if m.Host != nil && *m.Host != "" {
+			if err := netguard.CheckPublicURL("https://" + *m.Host); err != nil {
+				return Result{Status: "down", Error: err.Error()}
+			}
+		}
+	}
+
 	switch m.Type {
 	case "http":
 		p := HTTPCheckParams{

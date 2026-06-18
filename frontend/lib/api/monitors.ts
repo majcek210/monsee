@@ -14,6 +14,14 @@ export interface CreateMonitorInput {
   http_method?: string;
   http_expected_status?: number;
   enabled?: boolean;
+  // SSL
+  ssl_expiry_threshold_days?: number;
+  // Keyword
+  keyword_match?: string;
+  keyword_should_exist?: boolean;
+  // DNS
+  dns_record_type?: string;
+  dns_expected_value?: string;
 }
 
 export const monitorsApi = {

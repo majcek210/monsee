@@ -21,8 +21,15 @@ func NewServiceRepo(pool *pgxpool.Pool) *ServiceRepo {
 
 func (r *ServiceRepo) Create(ctx context.Context, p domain.CreateServiceParams) (*domain.Service, error) {
 	row, err := r.q.CreateService(ctx, sqlcdb.CreateServiceParams{
-		Name:        p.Name,
-		Description: p.Description,
+		Name:                 p.Name,
+		Description:          p.Description,
+		PublicVisible:        p.PublicVisible,
+		ShowUptime:           p.ShowUptime,
+		DedicatedPageEnabled: p.DedicatedPageEnabled,
+		UptimeRangeDays:      p.UptimeRangeDays,
+		Slug:                 p.Slug,
+		CustomDomain:         p.CustomDomain,
+		StatusOverride:       p.StatusOverride,
 	})
 	if err != nil {
 		return nil, err
@@ -47,6 +54,18 @@ func (r *ServiceRepo) GetByID(ctx context.Context, id string) (*domain.Service, 
 
 func (r *ServiceRepo) List(ctx context.Context) ([]*domain.Service, error) {
 	rows, err := r.q.ListServices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*domain.Service, len(rows))
+	for i, row := range rows {
+		out[i] = serviceToDomain(row)
+	}
+	return out, nil
+}
+
+func (r *ServiceRepo) ListPublic(ctx context.Context) ([]*domain.Service, error) {
+	rows, err := r.q.ListPublic(ctx)
 	if err != nil {
 		return nil, err
 	}

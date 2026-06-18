@@ -33,6 +33,8 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	List(ctx context.Context) ([]*User, error)
 	UpdateRole(ctx context.Context, id, role string) (*User, error)
+	UpdateEmail(ctx context.Context, id, email string) (*User, error)
+	UpdatePasswordHash(ctx context.Context, id, passwordHash string) error
 	CountActiveAdmins(ctx context.Context) (int64, error)
 	Archive(ctx context.Context, id string) error
 	GetTOTP(ctx context.Context, userID string) (*TOTPData, error)
@@ -40,4 +42,7 @@ type UserRepository interface {
 	EnableTOTP(ctx context.Context, userID string, backupCodes []string) error
 	DisableTOTP(ctx context.Context, userID string) error
 	RemoveBackupCode(ctx context.Context, userID, code string) error
+	// ConsumeBackupCode atomically removes the hashed code and returns 1 if it
+	// was present (success) or 0 if it was already used / not found.
+	ConsumeBackupCode(ctx context.Context, userID, codeHash string) (int64, error)
 }

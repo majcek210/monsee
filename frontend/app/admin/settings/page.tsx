@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 export default function SettingsPage() {
   const { data: settings, isLoading } = useSettings();
@@ -17,12 +18,14 @@ export default function SettingsPage() {
   const [siteTitle, setSiteTitle] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [publicStatusEnabled, setPublicStatusEnabled] = useState(true);
+  const [customDomainsEnabled, setCustomDomainsEnabled] = useState(false);
 
   useEffect(() => {
     if (settings) {
       setSiteTitle(settings.site_title);
       setLogoUrl(settings.logo_url);
       setPublicStatusEnabled(settings.public_status_enabled);
+      setCustomDomainsEnabled(settings.custom_domains_enabled);
     }
   }, [settings]);
 
@@ -32,8 +35,11 @@ export default function SettingsPage() {
       site_title: siteTitle,
       logo_url: logoUrl,
       public_status_enabled: publicStatusEnabled,
+      custom_domains_enabled: customDomainsEnabled,
     });
   }
+
+  const proxyHost = process.env.NEXT_PUBLIC_PROXY_HOST || "proxy.example.com";
 
   if (isLoading) {
     return (
@@ -75,15 +81,18 @@ export default function SettingsPage() {
               />
               {logoUrl && (
                 <div className="mt-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <BrandLogo
                     src={logoUrl}
                     alt="Logo preview"
+                    size={40}
                     className="h-10 w-10 rounded object-contain bg-muted"
                   />
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Leave empty to use the default monsee logo.</p>
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use the default monsee logo. If this URL fails to load, the default
+                logo is shown instead automatically.
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -105,6 +114,55 @@ export default function SettingsPage() {
                 onCheckedChange={setPublicStatusEnabled}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Custom Domains</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Enable custom domains</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Let services be served on their own domain (e.g. status.acme.com). Must be on for
+                  dedicated pages and TLS issuance to work.
+                </p>
+              </div>
+              <Switch checked={customDomainsEnabled} onCheckedChange={setCustomDomainsEnabled} />
+            </div>
+
+            {customDomainsEnabled && (
+              <div className="rounded-md border border-border bg-muted/40 p-4 space-y-3 text-sm">
+                <p className="font-medium">Setup guide</p>
+                <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+                  <li>
+                    Open the service, go to the <span className="text-foreground">Public Page</span>{" "}
+                    tab, enable the dedicated page, set a slug and enter the custom domain.
+                  </li>
+                  <li>
+                    At your domain&apos;s DNS provider, add a CNAME record:
+                    <pre className="mt-1 rounded bg-background p-2 text-xs text-foreground overflow-x-auto">
+{`status.theircompany.com  CNAME  ${proxyHost}`}
+                    </pre>
+                    <span className="text-xs">
+                      Keep it <span className="text-foreground">DNS-only / grey-cloud</span> if your
+                      proxy issues the certificate itself.
+                    </span>
+                  </li>
+                  <li>
+                    TLS is issued automatically on the first visit (the proxy checks{" "}
+                    <code>/api/v1/tls-check</code> before issuing). Allow a minute, then open the
+                    domain.
+                  </li>
+                </ol>
+                <p className="text-xs text-muted-foreground">
+                  See <code>docs/custom-domains-infra.md</code> for the proxy / Cloudflare Tunnel
+                  setup and the Cloudflare-for-SaaS upgrade path.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

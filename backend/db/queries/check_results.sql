@@ -24,7 +24,7 @@ SELECT
   count(*) FILTER (WHERE status = 'degraded') AS degraded_count
 FROM check_results
 WHERE monitor_id = $1
-  AND checked_at >= now() - ($2 || ' days')::interval
+  AND checked_at >= now() - ($2::int * INTERVAL '1 day')
   AND NOT EXISTS (
     SELECT 1 FROM maintenance_windows mw
     WHERE mw.service_id = (SELECT service_id FROM monitors WHERE id = $1)
@@ -37,7 +37,7 @@ ORDER BY day ASC;
 -- name: ListResponseTimes :many
 SELECT checked_at, response_time_ms, status FROM check_results
 WHERE monitor_id = $1
-  AND checked_at >= now() - ($2 || ' hours')::interval
+  AND checked_at >= now() - ($2::int * INTERVAL '1 hour')
   AND response_time_ms IS NOT NULL
 ORDER BY checked_at ASC
 LIMIT 500;

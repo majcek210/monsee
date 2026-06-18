@@ -32,7 +32,7 @@ type monitorStatus struct {
 }
 
 func (h *StatusHandler) GetStatus(c fiber.Ctx) error {
-	svcs, err := h.services.List(c.Context())
+	svcs, err := h.services.ListPublic(c.Context())
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (h *StatusHandler) GetStatus(c fiber.Ctx) error {
 			ID:          svc.ID,
 			Name:        svc.Name,
 			Description: svc.Description,
-			Status:      svc.Status,
+			Status:      svc.EffectiveStatus(),
 			Monitors:    ms,
 		})
 	}

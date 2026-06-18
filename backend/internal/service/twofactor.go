@@ -114,17 +114,14 @@ func (s *TwoFactorService) Verify(ctx context.Context, userID, code string) (boo
 		return true, nil
 	}
 
-	codeHash := hash.SHA256(code)
-	for _, bc := range totpData.BackupCodes {
-		if bc == codeHash {
-			if err := s.users.RemoveBackupCode(ctx, userID, bc); err != nil {
-				return false, err
-			}
-			return true, nil
-		}
+	// Atomically consume a backup code: the DB removes it only if present,
+	// returning rows-affected=1. This prevents a TOCTOU race where two
+	// concurrent requests could both pass a hash comparison on the same code.
+	n, err := s.users.ConsumeBackupCode(ctx, userID, hash.SHA256(code))
+	if err != nil {
+		return false, err
 	}
-
-	return false, nil
+	return n > 0, nil
 }
 
 func generateBackupCode() (string, error) {

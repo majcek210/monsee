@@ -38,6 +38,9 @@ func (s *UptimeService) GetServiceUptime(ctx context.Context, serviceID string, 
 	if err != nil {
 		return nil, err
 	}
+	if !svc.PublicVisible {
+		return nil, domain.NotFound("service not found")
+	}
 
 	rangeDays := svc.UptimeRangeDays
 	if days != nil {
@@ -111,5 +114,16 @@ func (s *UptimeService) GetAllServicesUptime(ctx context.Context) ([]*ServiceUpt
 }
 
 func (s *UptimeService) GetMonitorLatency(ctx context.Context, monitorID string, hours int32) ([]*domain.ResponseTimePoint, error) {
+	m, err := s.monitors.GetByID(ctx, monitorID)
+	if err != nil {
+		return nil, err
+	}
+	svc, err := s.services.GetByID(ctx, m.ServiceID)
+	if err != nil {
+		return nil, err
+	}
+	if !svc.PublicVisible {
+		return nil, domain.NotFound("monitor not found")
+	}
 	return s.checkResults.ListResponseTimes(ctx, monitorID, hours)
 }

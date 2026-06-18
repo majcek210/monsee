@@ -5,10 +5,16 @@ WORKDIR /app
 
 RUN apk add --no-cache git
 
+# Install sqlc so we can regenerate from SQL sources inside Docker
+RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+
+# Regenerate sqlc code from SQL files — ensures consistency regardless of cache
+RUN sqlc generate
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/server ./cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/worker ./cmd/worker

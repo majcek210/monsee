@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/majcek210/monsee/internal/domain"
 	"github.com/majcek210/monsee/pkg/hash"
@@ -88,6 +89,51 @@ func (s *UserService) UpdateRole(ctx context.Context, id, role string) (*domain.
 	}
 
 	return s.users.UpdateRole(ctx, id, role)
+}
+
+// UpdateProfile updates a user's email and/or password. Either field may be
+// nil to leave it unchanged. Role is intentionally not handled here — see
+// UpdateRole, which carries the last-admin safety check.
+func (s *UserService) UpdateProfile(ctx context.Context, id string, email *string, password *string) (*domain.User, error) {
+	if email != nil {
+		if *email == "" || !strings.Contains(*email, "@") {
+			return nil, domain.ValidationErr("email", "invalid email address")
+		}
+	}
+	if password != nil && len(*password) < 8 {
+		return nil, domain.ValidationErr("password", "password must be at least 8 characters")
+	}
+
+	user, err := s.users.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if password != nil {
+		h, err := hash.Password(*password)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.users.UpdatePasswordHash(ctx, id, h); err != nil {
+			return nil, err
+		}
+	}
+
+	if email != nil && *email != user.Email {
+		user, err = s.users.UpdateEmail(ctx, id, *email)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s.users.GetByID(ctx, id)
+}
+
+// AdminDisableTOTP force-disables 2FA for lockout recovery. Unlike the
+// self-service TwoFactorService.Disable, this skips the password check
+// since an admin (not the account owner) is performing the recovery.
+func (s *UserService) AdminDisableTOTP(ctx context.Context, id string) error {
+	return s.users.DisableTOTP(ctx, id)
 }
 
 // Archive deactivates a user. Archiving the last remaining admin is rejected

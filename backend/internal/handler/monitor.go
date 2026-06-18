@@ -25,36 +25,46 @@ func (h *MonitorHandler) List(c fiber.Ctx) error {
 
 func (h *MonitorHandler) Create(c fiber.Ctx) error {
 	var body struct {
-		ServiceID           string  `json:"service_id"`
-		Name                string  `json:"name"`
-		Type                string  `json:"type"`
-		URL                 *string `json:"url"`
-		Host                *string `json:"host"`
-		Port                *int32  `json:"port"`
-		IntervalSeconds     int32   `json:"interval_seconds"`
-		TimeoutMs           int32   `json:"timeout_ms"`
-		RetryCount          int32   `json:"retry_count"`
-		DegradedThresholdMs *int32  `json:"degraded_threshold_ms"`
-		HTTPMethod          *string `json:"http_method"`
-		HTTPExpectedStatus  *int32  `json:"http_expected_status"`
+		ServiceID              string  `json:"service_id"`
+		Name                   string  `json:"name"`
+		Type                   string  `json:"type"`
+		URL                    *string `json:"url"`
+		Host                   *string `json:"host"`
+		Port                   *int32  `json:"port"`
+		IntervalSeconds        int32   `json:"interval_seconds"`
+		TimeoutMs              int32   `json:"timeout_ms"`
+		RetryCount             int32   `json:"retry_count"`
+		DegradedThresholdMs    *int32  `json:"degraded_threshold_ms"`
+		HTTPMethod             *string `json:"http_method"`
+		HTTPExpectedStatus     *int32  `json:"http_expected_status"`
+		SSLExpiryThresholdDays int32   `json:"ssl_expiry_threshold_days"`
+		KeywordMatch           *string `json:"keyword_match"`
+		KeywordShouldExist     bool    `json:"keyword_should_exist"`
+		DNSRecordType          *string `json:"dns_record_type"`
+		DNSExpectedValue       *string `json:"dns_expected_value"`
 	}
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
 	}
 
 	mon, err := h.monitors.Create(c.Context(), domain.CreateMonitorParams{
-		ServiceID:           body.ServiceID,
-		Name:                body.Name,
-		Type:                body.Type,
-		URL:                 body.URL,
-		Host:                body.Host,
-		Port:                body.Port,
-		IntervalSeconds:     body.IntervalSeconds,
-		TimeoutMs:           body.TimeoutMs,
-		RetryCount:          body.RetryCount,
-		DegradedThresholdMs: body.DegradedThresholdMs,
-		HTTPMethod:          body.HTTPMethod,
-		HTTPExpectedStatus:  body.HTTPExpectedStatus,
+		ServiceID:              body.ServiceID,
+		Name:                   body.Name,
+		Type:                   body.Type,
+		URL:                    body.URL,
+		Host:                   body.Host,
+		Port:                   body.Port,
+		IntervalSeconds:        body.IntervalSeconds,
+		TimeoutMs:              body.TimeoutMs,
+		RetryCount:             body.RetryCount,
+		DegradedThresholdMs:    body.DegradedThresholdMs,
+		HTTPMethod:             body.HTTPMethod,
+		HTTPExpectedStatus:     body.HTTPExpectedStatus,
+		SSLExpiryThresholdDays: body.SSLExpiryThresholdDays,
+		KeywordMatch:           body.KeywordMatch,
+		KeywordShouldExist:     body.KeywordShouldExist,
+		DNSRecordType:          body.DNSRecordType,
+		DNSExpectedValue:       body.DNSExpectedValue,
 	})
 	if err != nil {
 		return err
@@ -72,34 +82,44 @@ func (h *MonitorHandler) Get(c fiber.Ctx) error {
 
 func (h *MonitorHandler) Update(c fiber.Ctx) error {
 	var body struct {
-		Name                string  `json:"name"`
-		URL                 *string `json:"url"`
-		Host                *string `json:"host"`
-		Port                *int32  `json:"port"`
-		IntervalSeconds     int32   `json:"interval_seconds"`
-		TimeoutMs           int32   `json:"timeout_ms"`
-		RetryCount          int32   `json:"retry_count"`
-		DegradedThresholdMs *int32  `json:"degraded_threshold_ms"`
-		HTTPMethod          *string `json:"http_method"`
-		HTTPExpectedStatus  *int32  `json:"http_expected_status"`
-		Enabled             bool    `json:"enabled"`
+		Name                   string  `json:"name"`
+		URL                    *string `json:"url"`
+		Host                   *string `json:"host"`
+		Port                   *int32  `json:"port"`
+		IntervalSeconds        int32   `json:"interval_seconds"`
+		TimeoutMs              int32   `json:"timeout_ms"`
+		RetryCount             int32   `json:"retry_count"`
+		DegradedThresholdMs    *int32  `json:"degraded_threshold_ms"`
+		HTTPMethod             *string `json:"http_method"`
+		HTTPExpectedStatus     *int32  `json:"http_expected_status"`
+		Enabled                bool    `json:"enabled"`
+		SSLExpiryThresholdDays int32   `json:"ssl_expiry_threshold_days"`
+		KeywordMatch           *string `json:"keyword_match"`
+		KeywordShouldExist     bool    `json:"keyword_should_exist"`
+		DNSRecordType          *string `json:"dns_record_type"`
+		DNSExpectedValue       *string `json:"dns_expected_value"`
 	}
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
 	}
 
 	mon, err := h.monitors.Update(c.Context(), c.Params("id"), domain.UpdateMonitorParams{
-		Name:                body.Name,
-		URL:                 body.URL,
-		Host:                body.Host,
-		Port:                body.Port,
-		IntervalSeconds:     body.IntervalSeconds,
-		TimeoutMs:           body.TimeoutMs,
-		RetryCount:          body.RetryCount,
-		DegradedThresholdMs: body.DegradedThresholdMs,
-		HTTPMethod:          body.HTTPMethod,
-		HTTPExpectedStatus:  body.HTTPExpectedStatus,
-		Enabled:             body.Enabled,
+		Name:                   body.Name,
+		URL:                    body.URL,
+		Host:                   body.Host,
+		Port:                   body.Port,
+		IntervalSeconds:        body.IntervalSeconds,
+		TimeoutMs:              body.TimeoutMs,
+		RetryCount:             body.RetryCount,
+		DegradedThresholdMs:    body.DegradedThresholdMs,
+		HTTPMethod:             body.HTTPMethod,
+		HTTPExpectedStatus:     body.HTTPExpectedStatus,
+		Enabled:                body.Enabled,
+		SSLExpiryThresholdDays: body.SSLExpiryThresholdDays,
+		KeywordMatch:           body.KeywordMatch,
+		KeywordShouldExist:     body.KeywordShouldExist,
+		DNSRecordType:          body.DNSRecordType,
+		DNSExpectedValue:       body.DNSExpectedValue,
 	})
 	if err != nil {
 		return err

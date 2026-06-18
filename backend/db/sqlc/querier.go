@@ -18,6 +18,9 @@ type Querier interface {
 	ArchiveService(ctx context.Context, id pgtype.UUID) error
 	ArchiveUser(ctx context.Context, id pgtype.UUID) error
 	ArchiveWebhook(ctx context.Context, id pgtype.UUID) error
+	// Atomically removes a backup code only if it is present in the array.
+	// Returns 1 if consumed, 0 if the code was not found (wrong or already used).
+	ConsumeBackupCode(ctx context.Context, arg ConsumeBackupCodeParams) (int64, error)
 	CountActiveAdmins(ctx context.Context) (int64, error)
 	CountAuditLog(ctx context.Context, arg CountAuditLogParams) (int64, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (ApiKey, error)
@@ -67,6 +70,7 @@ type Querier interface {
 	ListMaintenanceWindowsByService(ctx context.Context, serviceID pgtype.UUID) ([]MaintenanceWindow, error)
 	ListMonitorsByService(ctx context.Context, serviceID pgtype.UUID) ([]Monitor, error)
 	ListNotificationChannels(ctx context.Context) ([]NotificationChannel, error)
+	ListPublic(ctx context.Context) ([]Service, error)
 	ListResponseTimes(ctx context.Context, arg ListResponseTimesParams) ([]ListResponseTimesRow, error)
 	ListServices(ctx context.Context) ([]Service, error)
 	ListUsers(ctx context.Context) ([]User, error)
@@ -90,6 +94,8 @@ type Querier interface {
 	// slug/custom_domain/status_override use CASE to allow clearing to NULL.
 	UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error)
 	UpdateSettings(ctx context.Context, arg UpdateSettingsParams) (Setting, error)
+	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (User, error)
+	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error)
 	// Partial update: any narg left NULL keeps the existing column value, so the
 	// handler can omit name/url/secret/events/enabled independently (e.g. the

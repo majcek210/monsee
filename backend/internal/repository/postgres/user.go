@@ -87,6 +87,35 @@ func (r *UserRepo) UpdateRole(ctx context.Context, id, role string) (*domain.Use
 	return userToDomain(row), nil
 }
 
+func (r *UserRepo) UpdateEmail(ctx context.Context, id, email string) (*domain.User, error) {
+	uid, err := parseUUID(id)
+	if err != nil {
+		return nil, domain.NotFound("user not found")
+	}
+	row, err := r.q.UpdateUserEmail(ctx, sqlcdb.UpdateUserEmailParams{
+		ID:    uid,
+		Email: email,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.NotFound("user not found")
+		}
+		return nil, err
+	}
+	return userToDomain(row), nil
+}
+
+func (r *UserRepo) UpdatePasswordHash(ctx context.Context, id, passwordHash string) error {
+	uid, err := parseUUID(id)
+	if err != nil {
+		return domain.NotFound("user not found")
+	}
+	return r.q.UpdateUserPassword(ctx, sqlcdb.UpdateUserPasswordParams{
+		ID:           uid,
+		PasswordHash: passwordHash,
+	})
+}
+
 func (r *UserRepo) CountActiveAdmins(ctx context.Context) (int64, error) {
 	return r.q.CountActiveAdmins(ctx)
 }
@@ -153,6 +182,17 @@ func (r *UserRepo) RemoveBackupCode(ctx context.Context, userID, code string) er
 	return r.q.RemoveBackupCode(ctx, sqlcdb.RemoveBackupCodeParams{
 		ID:          uid,
 		ArrayRemove: code,
+	})
+}
+
+func (r *UserRepo) ConsumeBackupCode(ctx context.Context, userID, codeHash string) (int64, error) {
+	uid, err := parseUUID(userID)
+	if err != nil {
+		return 0, domain.NotFound("user not found")
+	}
+	return r.q.ConsumeBackupCode(ctx, sqlcdb.ConsumeBackupCodeParams{
+		ID:          uid,
+		ArrayRemove: codeHash,
 	})
 }
 

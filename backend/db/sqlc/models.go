@@ -125,11 +125,12 @@ type Service struct {
 }
 
 type Setting struct {
-	ID                  int32              `json:"id"`
-	SiteTitle           string             `json:"site_title"`
-	LogoUrl             string             `json:"logo_url"`
-	PublicStatusEnabled bool               `json:"public_status_enabled"`
-	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	ID                   int32              `json:"id"`
+	SiteTitle            string             `json:"site_title"`
+	LogoUrl              string             `json:"logo_url"`
+	PublicStatusEnabled  bool               `json:"public_status_enabled"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	CustomDomainsEnabled bool               `json:"custom_domains_enabled"`
 }
 
 type User struct {

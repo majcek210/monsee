@@ -1,0 +1,15 @@
+{
+	# Caddy calls this before issuing a cert for an unknown SNI.
+	# Caddy automatically appends ?domain=<sni>.
+	on_demand_tls {
+		ask http://backend:8080/api/v1/tls-check
+	}
+}
+
+# Custom domains (any host) — on-demand TLS, proxied to the frontend.
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy frontend:3000
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus, CheckCircle } from "lucide-react";
 import { useIncidents, useCreateIncident, useResolveIncident } from "@/lib/hooks/use-incidents";
 import { useServices } from "@/lib/hooks/use-services";
@@ -79,9 +80,12 @@ export default function IncidentsPage() {
       ) : (
         <div className="space-y-2">
           {[...active, ...resolved].map((inc) => (
-            <Card key={inc.id}>
+            <Card key={inc.id} className="cursor-pointer hover:bg-accent/30 transition-colors">
               <CardContent className="flex items-center gap-4 py-4">
-                <div className="flex-1 min-w-0">
+                <Link
+                  href={`/admin/incidents/${inc.id}`}
+                  className="flex-1 min-w-0"
+                >
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm">{inc.title}</span>
                     <IncidentStatusBadge status={inc.status} />
@@ -92,7 +96,7 @@ export default function IncidentsPage() {
                     {inc.resolved_at &&
                       ` · resolved ${formatDistanceToNow(new Date(inc.resolved_at), { addSuffix: true })}`}
                   </p>
-                </div>
+                </Link>
                 {inc.status === "open" && (
                   <Button
                     variant="outline"

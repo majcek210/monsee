@@ -21,16 +21,30 @@ func (h *ServiceHandler) List(c fiber.Ctx) error {
 
 func (h *ServiceHandler) Create(c fiber.Ctx) error {
 	var body struct {
-		Name        string  `json:"name"`
-		Description *string `json:"description"`
+		Name                 string  `json:"name"`
+		Description          *string `json:"description"`
+		PublicVisible        *bool   `json:"public_visible"`
+		ShowUptime           *bool   `json:"show_uptime"`
+		DedicatedPageEnabled *bool   `json:"dedicated_page_enabled"`
+		Slug                 *string `json:"slug"`
+		CustomDomain         *string `json:"custom_domain"`
+		UptimeRangeDays      *int32  `json:"uptime_range_days"`
+		StatusOverride       *string `json:"status_override"`
 	}
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
 	}
 
 	svc, err := h.svc.Create(c.Context(), domain.CreateServiceParams{
-		Name:        body.Name,
-		Description: body.Description,
+		Name:                 body.Name,
+		Description:          body.Description,
+		PublicVisible:        body.PublicVisible,
+		ShowUptime:           body.ShowUptime,
+		DedicatedPageEnabled: body.DedicatedPageEnabled,
+		Slug:                 body.Slug,
+		CustomDomain:         body.CustomDomain,
+		UptimeRangeDays:      body.UptimeRangeDays,
+		StatusOverride:       body.StatusOverride,
 	})
 	if err != nil {
 		return err
@@ -48,16 +62,30 @@ func (h *ServiceHandler) Get(c fiber.Ctx) error {
 
 func (h *ServiceHandler) Update(c fiber.Ctx) error {
 	var body struct {
-		Name        string  `json:"name"`
-		Description *string `json:"description"`
+		Name                 string  `json:"name"`
+		Description          *string `json:"description"`
+		PublicVisible        *bool   `json:"public_visible"`
+		ShowUptime           *bool   `json:"show_uptime"`
+		DedicatedPageEnabled *bool   `json:"dedicated_page_enabled"`
+		Slug                 *string `json:"slug"`
+		CustomDomain         *string `json:"custom_domain"`
+		UptimeRangeDays      *int32  `json:"uptime_range_days"`
+		StatusOverride       *string `json:"status_override"`
 	}
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
 	}
 
 	svc, err := h.svc.Update(c.Context(), c.Params("id"), domain.UpdateServiceParams{
-		Name:        body.Name,
-		Description: body.Description,
+		Name:                 body.Name,
+		Description:          body.Description,
+		PublicVisible:        body.PublicVisible,
+		ShowUptime:           body.ShowUptime,
+		DedicatedPageEnabled: body.DedicatedPageEnabled,
+		Slug:                 body.Slug,
+		CustomDomain:         body.CustomDomain,
+		UptimeRangeDays:      body.UptimeRangeDays,
+		StatusOverride:       body.StatusOverride,
 	})
 	if err != nil {
 		return err

@@ -7,6 +7,7 @@ import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { usePublicSettings } from "@/lib/hooks/use-settings";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import type { Incident, IncidentUpdate } from "@/types";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -41,14 +42,12 @@ export default function PublicIncidentPage() {
   });
 
   const siteTitle = settings?.site_title || "monsee";
-  const logoUrl = settings?.logo_url || "/monsee.png";
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt={siteTitle} width={24} height={24} className="rounded" />
+          <BrandLogo src={settings?.logo_url} alt={siteTitle} className="rounded" />
           <span className="font-semibold">{siteTitle}</span>
         </div>
       </header>

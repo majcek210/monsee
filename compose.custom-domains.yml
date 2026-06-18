@@ -1,0 +1,33 @@
+# Optional add-on for serving customer custom domains.
+# Usage: docker compose -f compose.yml -f compose.custom-domains.yml up -d
+#        (or layer on compose.prod.yml / compose.coolify.yml the same way)
+#
+# Caddy terminates TLS on demand (asking the backend's /api/v1/tls-check
+# allowlist before issuing a cert per domain) and reverse-proxies to the
+# frontend. cloudflared tunnels traffic in without exposing the host's IP.
+# See docs/custom-domains-infra.md for full setup, DNS, and the Cloudflare
+# for SaaS caveat for fully hiding the origin on external customer domains.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARED_TUNNEL_TOKEN}
+    depends_on:
+      - caddy
+
+volumes:
+  caddy_data:
+  caddy_config:

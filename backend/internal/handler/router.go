@@ -75,7 +75,7 @@ func New(d Deps) *fiber.App {
 		authGroup.Get("/me", auth, uh.Me)
 
 		if d.TwoFactor != nil {
-			tfh := &TwoFactorHandler{tf: d.TwoFactor}
+			tfh := &TwoFactorHandler{tf: d.TwoFactor, users: d.Users, cfg: d.Cfg, limiter: d.Limiter}
 			authGroup.Post("/2fa/verify", tfh.Verify)
 		}
 	}
@@ -159,7 +159,10 @@ func New(d Deps) *fiber.App {
 		uh := &UserHandler{users: d.Users, cfg: d.Cfg}
 		admin.Get("/users", middleware.RequireAdmin, uh.List)
 		admin.Post("/users", middleware.RequireAdmin, uh.Create)
-		admin.Patch("/users/:id", middleware.RequireAdmin, uh.UpdateRole)
+		// Update is unguarded by RequireAdmin: the handler itself allows a
+		// non-admin to edit only their own email/password, never role/others.
+		admin.Patch("/users/:id", uh.Update)
+		admin.Post("/users/:id/disable-2fa", middleware.RequireAdmin, uh.DisableTOTP)
 		admin.Delete("/users/:id", middleware.RequireAdmin, uh.Archive)
 
 		if d.Settings != nil {
@@ -178,10 +181,10 @@ func New(d Deps) *fiber.App {
 		}
 
 		if d.TwoFactor != nil {
-			tfh := &TwoFactorHandler{tf: d.TwoFactor}
+			tfh := &TwoFactorHandler{tf: d.TwoFactor, users: d.Users, cfg: d.Cfg, limiter: d.Limiter}
 			admin.Post("/2fa/setup", tfh.InitiateSetup)
 			admin.Post("/2fa/confirm", tfh.ConfirmSetup)
-			admin.Post("/2fa/disable", middleware.RequireAdmin, tfh.Disable)
+			admin.Post("/2fa/disable", tfh.Disable)
 		}
 
 		if d.AuditRepo != nil {
@@ -199,6 +202,35 @@ func New(d Deps) *fiber.App {
 			api.Get("/settings", psh.GetSettings)
 		}
 
+		// Dedicated / custom-domain pages — gated by custom_domains_enabled,
+		// independent of the global public status page. Registered BEFORE the
+		// global gate below so they stay reachable when the global page is off.
+		if d.Settings != nil && d.Uptime != nil && d.Services != nil {
+			cdGate := func(c fiber.Ctx) error {
+				cfg, err := d.Settings.Get(c.Context())
+				if err != nil || !cfg.CustomDomainsEnabled {
+					return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "custom domains disabled"})
+				}
+				return c.Next()
+			}
+			cduth := v1.NewUptimeHandler(d.Uptime, d.Services)
+			api.Get("/pages/:slug", cdGate, cduth.GetPageBySlug)
+			api.Get("/by-domain", cdGate, cduth.GetPageByDomain)
+			api.Get("/tls-check", cdGate, cduth.CheckDomain)
+		}
+
+		// Gate: if public status page is disabled, block all data routes below.
+		// /api/v1/settings is registered above so it remains always accessible.
+		if d.Settings != nil {
+			api.Use(func(c fiber.Ctx) error {
+				cfg, err := d.Settings.Get(c.Context())
+				if err != nil || !cfg.PublicStatusEnabled {
+					return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "status page disabled"})
+				}
+				return c.Next()
+			})
+		}
+
 		sh := v1.NewStatusHandler(d.Services, d.Monitors)
 		api.Get("/status", sh.GetStatus)
 
@@ -212,8 +244,8 @@ func New(d Deps) *fiber.App {
 			api.Get("/uptime", uth.GetAllUptime)
 			api.Get("/services/:id/uptime", uth.GetServiceUptime)
 			api.Get("/monitors/:id/latency", uth.GetMonitorLatency)
-			api.Get("/pages/:slug", uth.GetPageBySlug)
-			api.Get("/by-domain", uth.GetPageByDomain)
+			// /pages/:slug, /by-domain and /tls-check are registered above the
+			// global gate so they work independently of public_status_enabled.
 		}
 
 		if d.Services != nil {

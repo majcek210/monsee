@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -60,10 +59,9 @@ func (r *CheckResultRepo) ListDailyUptime(ctx context.Context, monitorID string,
 	if err != nil {
 		return nil, domain.ValidationErr("monitor_id", "invalid monitor_id")
 	}
-	daysStr := fmt.Sprintf("%d", days)
 	rows, err := r.q.GetDailyUptimeForMonitor(ctx, sqlcdb.GetDailyUptimeForMonitorParams{
 		MonitorID: mid,
-		Column2:   &daysStr,
+		Column2:   days,
 	})
 	if err != nil {
 		return nil, err
@@ -90,10 +88,9 @@ func (r *CheckResultRepo) ListResponseTimes(ctx context.Context, monitorID strin
 	if err != nil {
 		return nil, domain.ValidationErr("monitor_id", "invalid monitor_id")
 	}
-	hoursStr := fmt.Sprintf("%d", hours)
 	rows, err := r.q.ListResponseTimes(ctx, sqlcdb.ListResponseTimesParams{
 		MonitorID: mid,
-		Column2:   &hoursStr,
+		Column2:   hours,
 	})
 	if err != nil {
 		return nil, err

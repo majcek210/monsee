@@ -20,7 +20,8 @@ func (h *PublicSettingsHandler) GetSettings(c fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(fiber.Map{
-		"site_title": s.SiteTitle,
-		"logo_url":   s.LogoURL,
+		"site_title":             s.SiteTitle,
+		"logo_url":               s.LogoURL,
+		"custom_domains_enabled": s.CustomDomainsEnabled,
 	})
 }

@@ -58,6 +58,21 @@ func (h *UptimeHandler) GetPageBySlug(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"service": svc, "uptime": uptime})
 }
 
+// CheckDomain is the allowlist endpoint for Caddy's on-demand TLS (`ask`).
+// Caddy calls it with ?domain=<sni> before issuing a certificate; we return
+// 200 only for domains that map to a dedicated-page service, otherwise 404 —
+// preventing cert issuance for arbitrary hostnames.
+func (h *UptimeHandler) CheckDomain(c fiber.Ctx) error {
+	domain := c.Query("domain")
+	if domain == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "domain query param is required")
+	}
+	if _, err := h.services.GetByCustomDomain(c.Context(), domain); err != nil {
+		return c.SendStatus(fiber.StatusNotFound)
+	}
+	return c.SendStatus(fiber.StatusOK)
+}
+
 // GetPageByDomain returns the status page for a custom domain (query param).
 func (h *UptimeHandler) GetPageByDomain(c fiber.Ctx) error {
 	domain := c.Query("domain")

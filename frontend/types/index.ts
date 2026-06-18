@@ -3,6 +3,7 @@ export interface User {
   id: string;
   email: string;
   role: "admin" | "viewer";
+  totp_enabled: boolean;
   created_at: string;
   archived_at?: string | null;
 }
@@ -15,6 +16,13 @@ export interface Service {
   name: string;
   description?: string | null;
   status: ServiceStatus;
+  public_visible: boolean;
+  show_uptime: boolean;
+  dedicated_page_enabled: boolean;
+  slug?: string | null;
+  custom_domain?: string | null;
+  uptime_range_days: number;
+  status_override?: string | null;
   created_at: string;
   archived_at?: string | null;
 }
@@ -124,12 +132,14 @@ export interface Settings {
   site_title: string;
   logo_url: string;
   public_status_enabled: boolean;
+  custom_domains_enabled: boolean;
   updated_at: string;
 }
 
 export interface PublicSettings {
   site_title: string;
   logo_url: string;
+  custom_domains_enabled?: boolean;
 }
 
 // Maintenance Windows

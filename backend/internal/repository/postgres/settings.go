@@ -27,9 +27,10 @@ func (r *SettingsRepo) Get(ctx context.Context) (*domain.Settings, error) {
 
 func (r *SettingsRepo) Update(ctx context.Context, p domain.UpdateSettingsParams) (*domain.Settings, error) {
 	row, err := r.q.UpdateSettings(ctx, sqlcdb.UpdateSettingsParams{
-		SiteTitle:           p.SiteTitle,
-		LogoUrl:             p.LogoURL,
-		PublicStatusEnabled: p.PublicStatusEnabled,
+		SiteTitle:            p.SiteTitle,
+		LogoUrl:              p.LogoURL,
+		PublicStatusEnabled:  p.PublicStatusEnabled,
+		CustomDomainsEnabled: p.CustomDomainsEnabled,
 	})
 	if err != nil {
 		return nil, err
@@ -39,10 +40,11 @@ func (r *SettingsRepo) Update(ctx context.Context, p domain.UpdateSettingsParams
 
 func settingsToDomain(s sqlcdb.Setting) *domain.Settings {
 	return &domain.Settings{
-		ID:                  int(s.ID),
-		SiteTitle:           s.SiteTitle,
-		LogoURL:             s.LogoUrl,
-		PublicStatusEnabled: s.PublicStatusEnabled,
-		UpdatedAt:           tsToTime(s.UpdatedAt),
+		ID:                   int(s.ID),
+		SiteTitle:            s.SiteTitle,
+		LogoURL:              s.LogoUrl,
+		PublicStatusEnabled:  s.PublicStatusEnabled,
+		CustomDomainsEnabled: s.CustomDomainsEnabled,
+		UpdatedAt:            tsToTime(s.UpdatedAt),
 	}
 }

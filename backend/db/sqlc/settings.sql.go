@@ -10,7 +10,7 @@ import (
 )
 
 const getSettings = `-- name: GetSettings :one
-SELECT id, site_title, logo_url, public_status_enabled, updated_at FROM settings WHERE id = 1
+SELECT id, site_title, logo_url, public_status_enabled, updated_at, custom_domains_enabled FROM settings WHERE id = 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -22,28 +22,36 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.LogoUrl,
 		&i.PublicStatusEnabled,
 		&i.UpdatedAt,
+		&i.CustomDomainsEnabled,
 	)
 	return i, err
 }
 
 const updateSettings = `-- name: UpdateSettings :one
 UPDATE settings
-SET site_title            = COALESCE($1, site_title),
-    logo_url              = COALESCE($2, logo_url),
-    public_status_enabled = COALESCE($3, public_status_enabled),
-    updated_at            = now()
+SET site_title             = COALESCE($1, site_title),
+    logo_url               = COALESCE($2, logo_url),
+    public_status_enabled  = COALESCE($3, public_status_enabled),
+    custom_domains_enabled = COALESCE($4, custom_domains_enabled),
+    updated_at             = now()
 WHERE id = 1
-RETURNING id, site_title, logo_url, public_status_enabled, updated_at
+RETURNING id, site_title, logo_url, public_status_enabled, updated_at, custom_domains_enabled
 `
 
 type UpdateSettingsParams struct {
-	SiteTitle           *string `json:"site_title"`
-	LogoUrl             *string `json:"logo_url"`
-	PublicStatusEnabled *bool   `json:"public_status_enabled"`
+	SiteTitle            *string `json:"site_title"`
+	LogoUrl              *string `json:"logo_url"`
+	PublicStatusEnabled  *bool   `json:"public_status_enabled"`
+	CustomDomainsEnabled *bool   `json:"custom_domains_enabled"`
 }
 
 func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) (Setting, error) {
-	row := q.db.QueryRow(ctx, updateSettings, arg.SiteTitle, arg.LogoUrl, arg.PublicStatusEnabled)
+	row := q.db.QueryRow(ctx, updateSettings,
+		arg.SiteTitle,
+		arg.LogoUrl,
+		arg.PublicStatusEnabled,
+		arg.CustomDomainsEnabled,
+	)
 	var i Setting
 	err := row.Scan(
 		&i.ID,
@@ -51,6 +59,7 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		&i.LogoUrl,
 		&i.PublicStatusEnabled,
 		&i.UpdatedAt,
+		&i.CustomDomainsEnabled,
 	)
 	return i, err
 }

@@ -157,6 +157,47 @@ services:
     depends_on:
       - backend
 
+  # ── Custom domains (optional) ────────────────────────────────────────────
+  # Only takes effect once enabled in Settings → Custom Domains in the app.
+  # Coolify only supports one Docker Compose file per resource, so these are
+  # merged in here (rather than the separate compose.custom-domains.yml used
+  # for plain `docker compose -f ... -f ...` deployments) — that keeps them on
+  # the same Coolify-managed network as backend/frontend, so the Caddyfile's
+  # `backend:8080` / `frontend:3000` service-name references resolve.
+  # See docs/custom-domains-infra.md for the full setup (Cloudflare Tunnel +
+  # DNS + the Cloudflare-for-SaaS caveat).
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARED_TUNNEL_TOKEN}
+    depends_on:
+      - caddy
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
 volumes:
   postgres_data:
   redis_data:
+  caddy_data:
+  caddy_config:

@@ -22,6 +22,22 @@ func (s *MonitoringService) Create(ctx context.Context, p domain.CreateServicePa
 	if p.Name == "" {
 		return nil, domain.ValidationErr("name", "name is required")
 	}
+	if p.Slug != nil && *p.Slug != "" && !slugPattern.MatchString(*p.Slug) {
+		return nil, domain.ValidationErr("slug", "slug must be lowercase letters, numbers, and hyphens only")
+	}
+	if p.UptimeRangeDays != nil && (*p.UptimeRangeDays < 1 || *p.UptimeRangeDays > 365) {
+		return nil, domain.ValidationErr("uptime_range_days", "uptime_range_days must be between 1 and 365")
+	}
+	if p.StatusOverride != nil && *p.StatusOverride != "" {
+		valid := map[string]bool{"operational": true, "degraded": true, "outage": true, "maintenance": true}
+		if !valid[*p.StatusOverride] {
+			return nil, domain.ValidationErr("status_override", "status_override must be operational, degraded, outage, or maintenance")
+		}
+	}
+	dedicated := p.DedicatedPageEnabled != nil && *p.DedicatedPageEnabled
+	if dedicated && (p.Slug == nil || *p.Slug == "") {
+		return nil, domain.ValidationErr("slug", "slug is required when dedicated page is enabled")
+	}
 	return s.services.Create(ctx, p)
 }
 
@@ -31,6 +47,10 @@ func (s *MonitoringService) GetByID(ctx context.Context, id string) (*domain.Ser
 
 func (s *MonitoringService) List(ctx context.Context) ([]*domain.Service, error) {
 	return s.services.List(ctx)
+}
+
+func (s *MonitoringService) ListPublic(ctx context.Context) ([]*domain.Service, error) {
+	return s.services.ListPublic(ctx)
 }
 
 func (s *MonitoringService) Update(ctx context.Context, id string, p domain.UpdateServiceParams) (*domain.Service, error) {

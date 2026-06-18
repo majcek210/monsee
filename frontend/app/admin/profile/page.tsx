@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { ShieldCheck, ShieldOff } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ShieldCheck, ShieldOff, Save } from "lucide-react";
 import { useCurrentUser } from "@/lib/hooks/use-auth";
+import { useUpdateUser } from "@/lib/hooks/use-users";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +18,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-export default function SecurityPage() {
+export default function ProfilePage() {
   const { data: me, refetch } = useCurrentUser();
+  const updateMutation = useUpdateUser();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    if (me) setEmail(me.email);
+  }, [me]);
 
   const [setupOpen, setSetupOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
@@ -29,6 +38,18 @@ export default function SecurityPage() {
   const [confirmCode, setConfirmCode] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [disablePassword, setDisablePassword] = useState("");
+
+  async function handleAccountSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!me) return;
+    await updateMutation.mutateAsync({
+      id: me.id,
+      email: email !== me.email ? email : undefined,
+      password: password || undefined,
+    });
+    setPassword("");
+    refetch();
+  }
 
   async function initiateSetup() {
     try {
@@ -68,14 +89,50 @@ export default function SecurityPage() {
     }
   }
 
-  const totpEnabled = (me as { totp_enabled?: boolean } | undefined)?.totp_enabled ?? false;
+  const totpEnabled = me?.totp_enabled ?? false;
 
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-semibold">Security</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Two-factor authentication settings</p>
+        <h1 className="text-2xl font-semibold">My Profile</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Account details and two-factor authentication
+        </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Account</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAccountSave} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-email">Email</Label>
+              <Input
+                id="profile-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-password">New Password</Label>
+              <Input
+                id="profile-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Leave blank to keep your current password"
+              />
+            </div>
+            <Button type="submit" disabled={updateMutation.isPending}>
+              <Save className="h-4 w-4" />
+              Save
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

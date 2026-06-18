@@ -23,18 +23,48 @@ func (q *Queries) ArchiveService(ctx context.Context, id pgtype.UUID) error {
 }
 
 const createService = `-- name: CreateService :one
-INSERT INTO services (name, description)
-VALUES ($1, $2)
+INSERT INTO services (
+    name, description, public_visible, show_uptime,
+    dedicated_page_enabled, uptime_range_days, slug, custom_domain, status_override
+)
+VALUES (
+    $1,
+    $2,
+    COALESCE($3, true),
+    COALESCE($4, true),
+    COALESCE($5, false),
+    COALESCE($6, 90),
+    $7,
+    $8,
+    $9
+)
 RETURNING id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override
 `
 
 type CreateServiceParams struct {
-	Name        string  `json:"name"`
-	Description *string `json:"description"`
+	Name                 string      `json:"name"`
+	Description          *string     `json:"description"`
+	PublicVisible        interface{} `json:"public_visible"`
+	ShowUptime           interface{} `json:"show_uptime"`
+	DedicatedPageEnabled interface{} `json:"dedicated_page_enabled"`
+	UptimeRangeDays      interface{} `json:"uptime_range_days"`
+	Slug                 *string     `json:"slug"`
+	CustomDomain         *string     `json:"custom_domain"`
+	StatusOverride       *string     `json:"status_override"`
 }
 
 func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (Service, error) {
-	row := q.db.QueryRow(ctx, createService, arg.Name, arg.Description)
+	row := q.db.QueryRow(ctx, createService,
+		arg.Name,
+		arg.Description,
+		arg.PublicVisible,
+		arg.ShowUptime,
+		arg.DedicatedPageEnabled,
+		arg.UptimeRangeDays,
+		arg.Slug,
+		arg.CustomDomain,
+		arg.StatusOverride,
+	)
 	var i Service
 	err := row.Scan(
 		&i.ID,
@@ -55,7 +85,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 }
 
 const getServiceByCustomDomain = `-- name: GetServiceByCustomDomain :one
-SELECT id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override FROM services WHERE custom_domain = $1 AND archived_at IS NULL
+SELECT id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override FROM services WHERE custom_domain = $1 AND archived_at IS NULL AND dedicated_page_enabled = true
 `
 
 func (q *Queries) GetServiceByCustomDomain(ctx context.Context, customDomain *string) (Service, error) {
@@ -106,7 +136,7 @@ func (q *Queries) GetServiceByID(ctx context.Context, id pgtype.UUID) (Service, 
 }
 
 const getServiceBySlug = `-- name: GetServiceBySlug :one
-SELECT id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override FROM services WHERE slug = $1 AND archived_at IS NULL
+SELECT id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override FROM services WHERE slug = $1 AND archived_at IS NULL AND dedicated_page_enabled = true
 `
 
 func (q *Queries) GetServiceBySlug(ctx context.Context, slug *string) (Service, error) {
@@ -128,6 +158,46 @@ func (q *Queries) GetServiceBySlug(ctx context.Context, slug *string) (Service, 
 		&i.StatusOverride,
 	)
 	return i, err
+}
+
+const listPublic = `-- name: ListPublic :many
+SELECT id, name, description, status, created_at, archived_at, public_visible, show_uptime, dedicated_page_enabled, slug, custom_domain, uptime_range_days, status_override FROM services
+WHERE archived_at IS NULL AND public_visible = true
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListPublic(ctx context.Context) ([]Service, error) {
+	rows, err := q.db.Query(ctx, listPublic)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Service{}
+	for rows.Next() {
+		var i Service
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Status,
+			&i.CreatedAt,
+			&i.ArchivedAt,
+			&i.PublicVisible,
+			&i.ShowUptime,
+			&i.DedicatedPageEnabled,
+			&i.Slug,
+			&i.CustomDomain,
+			&i.UptimeRangeDays,
+			&i.StatusOverride,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listServices = `-- name: ListServices :many

@@ -23,11 +23,31 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; role: "admin" | "viewer" }) =>
-      usersApi.update(id, data),
+    mutationFn: ({
+      id,
+      ...data
+    }: {
+      id: string;
+      role?: "admin" | "viewer";
+      email?: string;
+      password?: string;
+    }) => usersApi.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: ["auth", "me"] });
       toast.success("User updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDisableUserTwoFactor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: usersApi.disableTwoFactor,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      toast.success("2FA disabled for user");
     },
     onError: (e: Error) => toast.error(e.message),
   });

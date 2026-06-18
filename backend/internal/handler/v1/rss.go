@@ -2,12 +2,19 @@ package v1
 
 import (
 	"fmt"
+	"html"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/majcek210/monsee/internal/service"
 )
+
+// cdataEscape prevents CDATA injection by splitting any ]]> sequence so it
+// cannot prematurely close a <![CDATA[...]]> section.
+func cdataEscape(s string) string {
+	return strings.ReplaceAll(s, "]]>", "]]]]><![CDATA[>")
+}
 
 type RSSHandler struct {
 	incidents *service.IncidentService
@@ -30,7 +37,7 @@ func (h *RSSHandler) GetFeed(c fiber.Ctx) error {
 		return err
 	}
 
-	baseURL := fmt.Sprintf("%s://%s", c.Protocol(), c.Hostname())
+	baseURL := fmt.Sprintf("%s://%s", c.Scheme(), c.Hostname())
 
 	var sb strings.Builder
 	for _, inc := range incs {
@@ -42,7 +49,7 @@ func (h *RSSHandler) GetFeed(c fiber.Ctx) error {
       <guid>%s/incidents/%s</guid>
       <pubDate>%s</pubDate>
       <description><![CDATA[Status: %s | Severity: %s]]></description>
-    </item>`, inc.Title, baseURL, inc.ID, baseURL, inc.ID, pubDate, inc.Status, inc.Severity)
+    </item>`, cdataEscape(inc.Title), baseURL, inc.ID, baseURL, inc.ID, pubDate, inc.Status, inc.Severity)
 	}
 	items := sb.String()
 
@@ -54,7 +61,7 @@ func (h *RSSHandler) GetFeed(c fiber.Ctx) error {
     <description>Recent incidents for %s</description>
     <lastBuildDate>%s</lastBuildDate>%s
   </channel>
-</rss>`, cfg.SiteTitle, baseURL, cfg.SiteTitle, time.Now().UTC().Format(time.RFC1123Z), items)
+</rss>`, cdataEscape(cfg.SiteTitle), baseURL, html.EscapeString(cfg.SiteTitle), time.Now().UTC().Format(time.RFC1123Z), items)
 
 	c.Set("Content-Type", "application/rss+xml; charset=utf-8")
 	return c.SendString(feed)

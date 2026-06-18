@@ -21,6 +21,9 @@ func (h *BadgeHandler) GetBadge(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	if !svc.PublicVisible {
+		return fiber.NewError(fiber.StatusNotFound, "service not found")
+	}
 
 	status := svc.EffectiveStatus()
 	color := statusColor(status)

@@ -6,17 +6,19 @@ import (
 )
 
 type Settings struct {
-	ID                  int       `json:"id"`
-	SiteTitle           string    `json:"site_title"`
-	LogoURL             string    `json:"logo_url"`
-	PublicStatusEnabled bool      `json:"public_status_enabled"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ID                   int       `json:"id"`
+	SiteTitle            string    `json:"site_title"`
+	LogoURL              string    `json:"logo_url"`
+	PublicStatusEnabled  bool      `json:"public_status_enabled"`
+	CustomDomainsEnabled bool      `json:"custom_domains_enabled"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type UpdateSettingsParams struct {
-	SiteTitle           *string
-	LogoURL             *string
-	PublicStatusEnabled *bool
+	SiteTitle            *string
+	LogoURL              *string
+	PublicStatusEnabled  *bool
+	CustomDomainsEnabled *bool
 }
 
 type SettingsRepository interface {

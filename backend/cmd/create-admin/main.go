@@ -34,19 +34,34 @@ func main() {
 	userRepo := postgres.NewUserRepo(pool)
 	userSvc := service.NewUserService(userRepo)
 
-	reader := bufio.NewReader(os.Stdin)
+	email := os.Getenv("ADMIN_EMAIL")
+	password := os.Getenv("ADMIN_PASSWORD")
 
-	fmt.Print("Email: ")
-	email, _ := reader.ReadString('\n')
-	email = strings.TrimSpace(email)
+	if email == "" || password == "" {
+		reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Password: ")
-	pwBytes, err := term.ReadPassword(int(syscall.Stdin))
-	fmt.Println()
-	if err != nil {
-		log.Fatalf("read password: %v", err)
+		if email == "" {
+			fmt.Print("Email: ")
+			email, _ = reader.ReadString('\n')
+			email = strings.TrimSpace(email)
+		}
+
+		if password == "" {
+			fmt.Print("Password: ")
+			var pwBytes []byte
+			if term.IsTerminal(int(syscall.Stdin)) {
+				pwBytes, err = term.ReadPassword(int(syscall.Stdin))
+				fmt.Println()
+				if err != nil {
+					log.Fatalf("read password: %v", err)
+				}
+			} else {
+				line, _ := reader.ReadString('\n')
+				pwBytes = []byte(line)
+			}
+			password = strings.TrimSpace(string(pwBytes))
+		}
 	}
-	password := strings.TrimSpace(string(pwBytes))
 
 	u, err := userSvc.Register(context.Background(), email, password, "admin")
 	if err != nil {

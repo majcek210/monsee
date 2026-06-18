@@ -20,6 +20,27 @@ func (q *Queries) ArchiveUser(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const consumeBackupCode = `-- name: ConsumeBackupCode :execrows
+UPDATE users
+SET totp_backup_codes = array_remove(totp_backup_codes, $2)
+WHERE id = $1 AND $2 = ANY(totp_backup_codes)
+`
+
+type ConsumeBackupCodeParams struct {
+	ID          pgtype.UUID `json:"id"`
+	ArrayRemove interface{} `json:"array_remove"`
+}
+
+// Atomically removes a backup code only if it is present in the array.
+// Returns 1 if consumed, 0 if the code was not found (wrong or already used).
+func (q *Queries) ConsumeBackupCode(ctx context.Context, arg ConsumeBackupCodeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, consumeBackupCode, arg.ID, arg.ArrayRemove)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countActiveAdmins = `-- name: CountActiveAdmins :one
 SELECT count(*) FROM users WHERE role = 'admin' AND archived_at IS NULL
 `
@@ -201,6 +222,47 @@ type SetTOTPSecretParams struct {
 
 func (q *Queries) SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error {
 	_, err := q.db.Exec(ctx, setTOTPSecret, arg.ID, arg.TotpSecret)
+	return err
+}
+
+const updateUserEmail = `-- name: UpdateUserEmail :one
+UPDATE users SET email = $2 WHERE id = $1 AND archived_at IS NULL
+RETURNING id, email, password_hash, role, created_at, archived_at, totp_secret, totp_enabled, totp_backup_codes
+`
+
+type UpdateUserEmailParams struct {
+	ID    pgtype.UUID `json:"id"`
+	Email string      `json:"email"`
+}
+
+func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserEmail, arg.ID, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+		&i.ArchivedAt,
+		&i.TotpSecret,
+		&i.TotpEnabled,
+		&i.TotpBackupCodes,
+	)
+	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users SET password_hash = $2 WHERE id = $1 AND archived_at IS NULL
+`
+
+type UpdateUserPasswordParams struct {
+	ID           pgtype.UUID `json:"id"`
+	PasswordHash string      `json:"password_hash"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
 	return err
 }
 

@@ -39,10 +39,23 @@ export function useCreateService() {
 export function useUpdateService() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name?: string; description?: string; status?: string }) =>
+    mutationFn: ({ id, ...data }: {
+      id: string;
+      name?: string;
+      description?: string;
+      status?: string;
+      public_visible?: boolean;
+      show_uptime?: boolean;
+      dedicated_page_enabled?: boolean;
+      slug?: string;
+      custom_domain?: string;
+      uptime_range_days?: number;
+      status_override?: string | null;
+    }) =>
       servicesApi.update(id, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: serviceKeys.all });
+      qc.invalidateQueries({ queryKey: serviceKeys.detail(variables.id) });
       toast.success("Service updated");
     },
     onError: (e: Error) => toast.error(e.message),

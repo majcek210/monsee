@@ -8,8 +8,21 @@ WHERE archived_at IS NULL
 ORDER BY created_at DESC;
 
 -- name: CreateService :one
-INSERT INTO services (name, description)
-VALUES ($1, $2)
+INSERT INTO services (
+    name, description, public_visible, show_uptime,
+    dedicated_page_enabled, uptime_range_days, slug, custom_domain, status_override
+)
+VALUES (
+    $1,
+    $2,
+    COALESCE(sqlc.narg(public_visible), true),
+    COALESCE(sqlc.narg(show_uptime), true),
+    COALESCE(sqlc.narg(dedicated_page_enabled), false),
+    COALESCE(sqlc.narg(uptime_range_days), 90),
+    sqlc.narg(slug),
+    sqlc.narg(custom_domain),
+    sqlc.narg(status_override)
+)
 RETURNING *;
 
 -- name: UpdateService :one
@@ -30,10 +43,15 @@ WHERE id = $1
 RETURNING *;
 
 -- name: GetServiceBySlug :one
-SELECT * FROM services WHERE slug = $1 AND archived_at IS NULL;
+SELECT * FROM services WHERE slug = $1 AND archived_at IS NULL AND dedicated_page_enabled = true;
 
 -- name: GetServiceByCustomDomain :one
-SELECT * FROM services WHERE custom_domain = $1 AND archived_at IS NULL;
+SELECT * FROM services WHERE custom_domain = $1 AND archived_at IS NULL AND dedicated_page_enabled = true;
+
+-- name: ListPublic :many
+SELECT * FROM services
+WHERE archived_at IS NULL AND public_visible = true
+ORDER BY created_at DESC;
 
 -- name: ArchiveService :exec
 UPDATE services

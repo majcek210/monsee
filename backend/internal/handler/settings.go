@@ -20,17 +20,19 @@ func (h *SettingsHandler) Get(c fiber.Ctx) error {
 
 func (h *SettingsHandler) Update(c fiber.Ctx) error {
 	var body struct {
-		SiteTitle           *string `json:"site_title"`
-		LogoURL             *string `json:"logo_url"`
-		PublicStatusEnabled *bool   `json:"public_status_enabled"`
+		SiteTitle            *string `json:"site_title"`
+		LogoURL              *string `json:"logo_url"`
+		PublicStatusEnabled  *bool   `json:"public_status_enabled"`
+		CustomDomainsEnabled *bool   `json:"custom_domains_enabled"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
 		return domain.ValidationErr("body", "invalid JSON")
 	}
 	s, err := h.settings.Update(c.Context(), domain.UpdateSettingsParams{
-		SiteTitle:           body.SiteTitle,
-		LogoURL:             body.LogoURL,
-		PublicStatusEnabled: body.PublicStatusEnabled,
+		SiteTitle:            body.SiteTitle,
+		LogoURL:              body.LogoURL,
+		PublicStatusEnabled:  body.PublicStatusEnabled,
+		CustomDomainsEnabled: body.CustomDomainsEnabled,
 	})
 	if err != nil {
 		return err

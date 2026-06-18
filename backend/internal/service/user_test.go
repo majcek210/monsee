@@ -85,6 +85,29 @@ func (m *mockUserRepo) UpdateRole(ctx context.Context, id, role string) (*domain
 	return &cp, nil
 }
 
+func (m *mockUserRepo) UpdateEmail(ctx context.Context, id, email string) (*domain.User, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.items[id]
+	if !ok {
+		return nil, domain.NotFound("user not found")
+	}
+	u.Email = email
+	cp := *u
+	return &cp, nil
+}
+
+func (m *mockUserRepo) UpdatePasswordHash(ctx context.Context, id, passwordHash string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.items[id]
+	if !ok {
+		return domain.NotFound("user not found")
+	}
+	u.PasswordHash = passwordHash
+	return nil
+}
+
 func (m *mockUserRepo) CountActiveAdmins(ctx context.Context) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -107,6 +130,57 @@ func (m *mockUserRepo) Archive(ctx context.Context, id string) error {
 	now := time.Now()
 	u.ArchivedAt = &now
 	return nil
+}
+
+func (m *mockUserRepo) GetTOTP(ctx context.Context, userID string) (*domain.TOTPData, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.items[userID]
+	if !ok {
+		return nil, domain.NotFound("user not found")
+	}
+	_ = u
+	return &domain.TOTPData{}, nil
+}
+
+func (m *mockUserRepo) SetTOTPSecret(ctx context.Context, userID, secret string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.items[userID]; !ok {
+		return domain.NotFound("user not found")
+	}
+	return nil
+}
+
+func (m *mockUserRepo) EnableTOTP(ctx context.Context, userID string, backupCodes []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.items[userID]; !ok {
+		return domain.NotFound("user not found")
+	}
+	return nil
+}
+
+func (m *mockUserRepo) DisableTOTP(ctx context.Context, userID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.items[userID]; !ok {
+		return domain.NotFound("user not found")
+	}
+	return nil
+}
+
+func (m *mockUserRepo) RemoveBackupCode(ctx context.Context, userID, code string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.items[userID]; !ok {
+		return domain.NotFound("user not found")
+	}
+	return nil
+}
+
+func (m *mockUserRepo) ConsumeBackupCode(ctx context.Context, userID, codeHash string) (int64, error) {
+	return 0, nil
 }
 
 func TestRegisterValidation(t *testing.T) {

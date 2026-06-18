@@ -29,8 +29,15 @@ func (s *Service) EffectiveStatus() string {
 }
 
 type CreateServiceParams struct {
-	Name        string
-	Description *string
+	Name                 string
+	Description          *string
+	PublicVisible        *bool
+	ShowUptime           *bool
+	DedicatedPageEnabled *bool
+	Slug                 *string
+	CustomDomain         *string
+	UptimeRangeDays      *int32
+	StatusOverride       *string
 }
 
 type UpdateServiceParams struct {
@@ -52,6 +59,7 @@ type ServiceRepository interface {
 	GetBySlug(ctx context.Context, slug string) (*Service, error)
 	GetByCustomDomain(ctx context.Context, domain string) (*Service, error)
 	List(ctx context.Context) ([]*Service, error)
+	ListPublic(ctx context.Context) ([]*Service, error)
 	Update(ctx context.Context, id string, p UpdateServiceParams) (*Service, error)
 	UpdateStatus(ctx context.Context, id, status string) error
 	Archive(ctx context.Context, id string) error
