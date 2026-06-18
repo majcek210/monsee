@@ -75,7 +75,8 @@ docker compose -f compose.yml -f compose.custom-domains.yml up -d
 docker compose -f compose.prod.yml -f compose.custom-domains.yml up -d
 ```
 
-It references a root-level `Caddyfile` (also checked in):
+It references a root-level `Caddyfile` (also checked in), baked into a tiny
+built image via `caddy/Dockerfile` rather than bind-mounted:
 
 ```caddyfile
 {
@@ -95,14 +96,30 @@ https:// {
 }
 ```
 
+```dockerfile
+# caddy/Dockerfile
+FROM caddy:2-alpine
+COPY Caddyfile /etc/caddy/Caddyfile
+```
+
+Caddy is **built**, not pulled as a bare image with a bind-mounted config
+file — bind-mounting a single file from the repo is fragile on platforms
+like Coolify that reuse the same on-disk checkout across deploys: if Docker
+ever runs before the file exists at that path, it silently creates an empty
+**directory** there instead, and every deploy after that fails with a mount
+error ("not a directory") since a tracked file can't checkout over a stray
+directory of the same name. Building the Caddyfile into the image sidesteps
+this entirely.
+
 ```yaml
 # compose.custom-domains.yml
 services:
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: caddy/Dockerfile
     restart: unless-stopped
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on: [frontend, backend]

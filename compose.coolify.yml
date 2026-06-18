@@ -167,10 +167,11 @@ services:
   # See docs/custom-domains-infra.md for the full setup (Cloudflare Tunnel +
   # DNS + the Cloudflare-for-SaaS caveat).
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: caddy/Dockerfile
     restart: unless-stopped
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
