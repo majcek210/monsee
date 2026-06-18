@@ -41,7 +41,7 @@ type CreateServiceParams struct {
 }
 
 type UpdateServiceParams struct {
-	Name                 string
+	Name                 *string
 	Description          *string
 	Status               *string
 	PublicVisible        *bool

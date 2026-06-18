@@ -62,7 +62,7 @@ func (h *ServiceHandler) Get(c fiber.Ctx) error {
 
 func (h *ServiceHandler) Update(c fiber.Ctx) error {
 	var body struct {
-		Name                 string  `json:"name"`
+		Name                 *string `json:"name"`
 		Description          *string `json:"description"`
 		PublicVisible        *bool   `json:"public_visible"`
 		ShowUptime           *bool   `json:"show_uptime"`

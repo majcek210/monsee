@@ -54,8 +54,8 @@ func (s *MonitoringService) ListPublic(ctx context.Context) ([]*domain.Service, 
 }
 
 func (s *MonitoringService) Update(ctx context.Context, id string, p domain.UpdateServiceParams) (*domain.Service, error) {
-	if p.Name == "" {
-		return nil, domain.ValidationErr("name", "name is required")
+	if p.Name != nil && *p.Name == "" {
+		return nil, domain.ValidationErr("name", "name cannot be empty")
 	}
 	if p.Slug != nil && *p.Slug != "" && !slugPattern.MatchString(*p.Slug) {
 		return nil, domain.ValidationErr("slug", "slug must be lowercase letters, numbers, and hyphens only")

@@ -103,10 +103,9 @@ func (r *ServiceRepo) Update(ctx context.Context, id string, p domain.UpdateServ
 	if err != nil {
 		return nil, domain.NotFound("service not found")
 	}
-	namePtr := &p.Name
 	row, err := r.q.UpdateService(ctx, sqlcdb.UpdateServiceParams{
 		ID:                   uid,
-		Name:                 namePtr,
+		Name:                 p.Name,
 		Description:          p.Description,
 		Status:               p.Status,
 		PublicVisible:        p.PublicVisible,
